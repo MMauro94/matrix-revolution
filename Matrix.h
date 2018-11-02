@@ -1,235 +1,331 @@
-//
-// Created by molin on 01/11/2018.
-//
-
 #ifndef MATRIX_MATRIX_H
 #define MATRIX_MATRIX_H
 
 #include <ostream>
+#include "MatrixData.h"
+#include "ArrayMatrixData.h"
+#include "matrix_exceptions.h"
+#include "MatrixDataWrapper.h"
 
-/*
- * Cose da fare:
- * -Determinante
- * -Inversa
- * -Rank
- * -triangolare
- * -identità
- * -vettori
- *   -linearmente indipendenti?
- * -covettori
- * -submatrix
- * -trasposta
- * -diagonale
- */
+template<typename T>
+class Matrix {
 
+    private:
+        MatrixData<T> *data;
+        bool mustDeleteData;
 
-template<unsigned int ROWS, unsigned int COLUMNS, class T>
-class Matrix;
-
-template<unsigned int ROWS, unsigned int COLUMNS, class T>
-class BaseMatrix {
-
-private:
-    T data[ROWS][COLUMNS];
-
-protected:
-    virtual Matrix<ROWS, COLUMNS, T> cast() = 0;
-
-public:
-
-    BaseMatrix() {
-    }
-
-    void clear() {
-        initialize(0);
-    }
-
-    void initialize(T val) {
-        for (int i = 0; i < ROWS; ++i) {
-            for (int j = 0; j < COLUMNS; ++j) {
-                data[i][j] = val;
+        void checkSquare() const {
+            if (!isSquare()) {
+                throw new SquareMatrixRequiredException;
             }
         }
-    }
 
-    const T *operator[](int index) const {
-        return data[index];
-    }
-
-    T *operator[](int index) {
-        return data[index];
-    }
-
-    template<unsigned int C>
-    Matrix<ROWS, C, T> operator*(Matrix<COLUMNS, C, T> other) const {
-        Matrix<ROWS, C, T> ret;
-        for (int i = 0; i < ROWS; ++i) {
-            for (int j = 0; j < C; ++j) {
-                ret[i][j] = 0;
-                for (int k = 0; k < COLUMNS; ++k) {
-                    ret[i][j] += data[i][k] * other.data[k][j];
-                }
+        void checkVector() const {
+            if (!isVector()) {
+                throw new VectorRequiredException;
             }
         }
-        return ret;
-    }
 
-    void multiplyBy(T factor) {
-        for (int i = 0; i < ROWS; ++i) {
-            for (int j = 0; j < COLUMNS; ++j) {
-                data[i][j] *= factor;
-            }
-        }
-    }
+        Matrix<T> _diagonal() {
+            checkSquare();
 
-    Matrix<ROWS, COLUMNS, T> operator*(T factor) {
-        Matrix<ROWS, COLUMNS, T> ret = cast();
-        ret.multiplyBy(factor);
-        return ret;
-    }
+            class DiagonalData : public MatrixDataWrapper<T> {
+                public:
 
-    Matrix<ROWS, COLUMNS, T> operator/(T factor) {
-        Matrix<ROWS, COLUMNS, T> ret = cast();
-        ret.multiplyBy(1 / factor);
-        return ret;
-    }
-
-
-    void sumBy(T addend) {
-        for (int i = 0; i < ROWS; ++i) {
-            for (int j = 0; j < COLUMNS; ++j) {
-                data[i][j] += addend;
-            }
-        }
-    }
-
-    Matrix<ROWS, COLUMNS, T> operator+(T addend) {
-        Matrix<ROWS, COLUMNS, T> ret = cast();
-        ret.sumBy(addend);
-        return ret;
-    }
-
-    Matrix<ROWS, COLUMNS, T> operator-(T addend) {
-        Matrix<ROWS, COLUMNS, T> ret = cast();
-        ret.sumBy(-addend);
-        return ret;
-    }
-
-    template<unsigned int R, unsigned int C, class T>
-    friend std::ostream &operator<<(std::ostream &os, const Matrix<R, C, T> &matrix) {
-        for (int i = 0; i < R; ++i) {
-            for (int j = 0; j < C; ++j) {
-                os << matrix.data[i][j] << "\t";
-            }
-            os << std::endl;
-        }
-        return os;
-    }
-};
-
-template<unsigned int ROWS, unsigned int COLUMNS, class T>
-class Matrix : public BaseMatrix<ROWS, COLUMNS, T> {
-protected:
-    Matrix<ROWS, COLUMNS, T> cast() {
-        return *this;
-    }
-};
-
-
-//SQUARE MATRIX
-template<unsigned int N, class T>
-class Matrix<N, N, T> : public BaseMatrix<N, N, T> {
-protected:
-    Matrix<N, N, T> cast() {
-        return *this;
-    }
-
-public:
-
-    std::pair<Matrix<N, N, T>, Matrix<N, N, T>> luDecomposition() {
-        Matrix<N, N, T> l, u;
-        for (int i = 0; i < N; ++i) {
-            for (int j = 0; j < N; ++j) {
-                if (j < i) {
-                    l[j][i] = 0;
-                } else {
-                    l[j][i] = (*this)[j][i];
-                    for (int k = 0; k < i; ++k) {
-                        l[j][i] -= l[j][k] * u[k][i];
+                    DiagonalData(MatrixData<T> *data) : MatrixDataWrapper(data, data->getColumns(), 1) {
                     }
-                }
-            }
 
-            for (int j = 0; j < N; ++j) {
-                if (j < i) {
-                    u[i][j] = 0;
-                } else if (j == i) {
-                    u[i][j] = 1;
-                } else {
-                    u[i][j] = (*this)[i][j] / l[i][i];
-                    for (int k = 0; k < i; ++k) {
-                        u[i][j] -= (l[i][k] * u[k][j]) / l[i][i];
+                    T &get(int row, int column) {
+                        return data->get(row, row);
                     }
+
+            };
+
+            return Matrix<T>(new DiagonalData(data));
+        }
+
+        Matrix<T> _transposed() const {
+            class TransposedData : public MatrixDataWrapper<T> {
+                public:
+
+                    TransposedData(MatrixData<T> *data) : MatrixDataWrapper(data, data->getColumns(), data->getRows()) {
+                    }
+
+                    T &get(int row, int column) {
+                        return data->get(column, row);
+                    }
+
+            };
+
+            return Matrix<T>(new TransposedData(data));
+        }
+
+        Matrix<T> _submatrix(int rowOffset, int rowCount, int columnOffset, int columnCount) const {
+            class SubmatrixData : public MatrixDataWrapper<T> {
+                private:
+                    int rowOffset;
+                    int columnOffset;
+                public:
+
+                    SubmatrixData(MatrixData<T> *data, int rowOffset, int rowCount, int columnOffset, int columnCount)
+                            : MatrixDataWrapper(data, rowCount, columnCount), rowOffset(rowOffset), columnOffset(columnOffset) {
+                    }
+
+                    T &get(int row, int column) {
+                        return data->get(row + rowOffset, column + columnOffset);
+                    }
+
+            };
+
+            return Matrix<T>(new SubmatrixData(data, rowOffset, rowCount, columnOffset, columnCount));
+        }
+
+        const Matrix<T> _toDiagonalMatrix() {
+            checkVector();
+
+            class DiagonalData : public MatrixDataWrapper<T> {
+                private:
+                    T zero = 0;
+                public:
+
+                    DiagonalData(MatrixData<T> *data) : MatrixDataWrapper(data, data->getRows(), data->getRows()) {
+                    }
+
+                    T &get(int row, int column) override {
+                        if (row == column) {
+                            return data->get(row, row);
+                        } else {
+                            return zero;
+                        }
+                    }
+            };
+
+            return Matrix<T>(new DiagonalData(data));
+        }
+
+        explicit Matrix(MatrixData<T> *data) : data(data) {
+            data->incrementRefCount();
+        }
+
+    public:
+
+        Matrix(const Matrix<T> &other) {
+            data = other.data;
+            data->incrementRefCount();
+        }
+
+        Matrix(const Matrix<T> &&other) noexcept {
+            data = other.data;
+            data->incrementRefCount();
+        }
+
+        class BaseMatrixRow {
+            protected:
+                MatrixData<T> *data;
+                int row;
+            public:
+
+                BaseMatrixRow(MatrixData<T> *data, int row) {
+                    this->data = data;
+                    this->row = row;
+                }
+
+        };
+
+        class ReadOnlyMatrixRow : BaseMatrixRow {
+            public:
+                ReadOnlyMatrixRow(MatrixData<T> *data, int row) : BaseMatrixRow(data, row) {
+                }
+
+                const T &operator[](int index) const {
+                    return data->get(row, index);
+                }
+        };
+
+        class MatrixRow : BaseMatrixRow {
+            public:
+                MatrixRow(MatrixData<T> *data, int row) : BaseMatrixRow(data, row) {
+                }
+
+                T &operator[](int index) const {
+                    return data->get(row, index);
+                }
+        };
+
+        Matrix(int rows, int columns) : Matrix(new ArrayMatrixData<T>(rows, columns)) {
+
+        }
+
+        ~Matrix() {
+            if (data->decrementRefCount()) {
+                std::cout << "Deleting data from matrix";
+                delete (data);
+            }
+        }
+
+        void clear() {
+            initialize(0);
+        }
+
+        int rows() const {
+            return data->getRows();
+        }
+
+        int columns() const {
+            return data->getColumns();
+        }
+
+        const ReadOnlyMatrixRow operator[](int index) const {
+            return ReadOnlyMatrixRow(data, index);
+        }
+
+        const MatrixRow operator[](int index) {
+            return MatrixRow(data, index);
+        }
+
+        void initialize(T val) {
+            for (int i = 0; i < rows(); ++i) {
+                for (int j = 0; j < columns(); ++j) {
+                    (*this)[i][j] = val;
                 }
             }
         }
-        return std::make_pair(l, u);
-    }
 
-    bool isUpperTriangular() {
-        for (int i = 0; i < N; ++i) {
-            for (int j = i + 1; j < N; ++j) {
-                if ((*this)[i][j] != 0) {
-                    return false;
-                }
+        Matrix<T> operator*(Matrix<T> other) {
+            if (columns() != other.rows()) {
+                throw new InvalidMatrixSizeException("Multiplication can only be performed between matrices NxM and MxO");
             }
-        }
-        return true;
-    }
-
-    bool isLowerTriangular() {
-        for (int i = 0; i < N; ++i) {
-            for (int j = 0; j < i; ++j) {
-                if ((*this)[i][j] != 0) {
-                    return false;
+            Matrix<T> ret(rows(), other.columns());
+            for (int i = 0; i < rows(); ++i) {
+                for (int j = 0; j < other.columns(); ++j) {
+                    ret[i][j] = row(i).transposed().scalarProduct(other.column(j));
                 }
-            }
-        }
-        return true;
-    }
-
-    bool isTriangular() {
-        return isLowerTriangular() || isUpperTriangular();
-    }
-
-    bool isDiagonal() {
-        return isLowerTriangular() && isUpperTriangular();
-    }
-
-    T determinant() {
-        if (isTriangular()) {
-            T ret = 1;
-            for (int i = 0; i < N; ++i) {
-                ret *= (*this)[i][i];
             }
             return ret;
-        } else {
-            auto lu = luDecomposition();
-            return lu.first.determinant() * lu.second.determinant();
         }
-    }
 
+        void multiplyBy(T factor) {
+            for (int i = 0; i < rows(); ++i) {
+                for (int j = 0; j < columns(); ++j) {
+                    (*this)[i][j] *= factor;
+                }
+            }
+        }
+
+        /*Matrix<T> operator*(T factor) {
+            Matrix<T> ret = *this;
+            ret.multiplyBy(factor);
+            return ret;
+        }*/
+
+        Matrix<T> operator/(T factor) {
+            Matrix<T> ret = *this;
+            ret.multiplyBy(1 / factor);
+            return ret;
+        }
+
+        void sumBy(T addend) {
+            for (int i = 0; i < rows(); ++i) {
+                for (int j = 0; j < columns(); ++j) {
+                    (*this)[i][j] += addend;
+                }
+            }
+        }
+
+        Matrix<T> operator+(T addend) {
+            Matrix<T> ret = *this;
+            ret.sumBy(addend);
+            return ret;
+        }
+
+        Matrix<T> operator-(T addend) {
+            Matrix<T> ret = *this;
+            ret.sumBy(-addend);
+            return ret;
+        }
+
+        template<typename T>
+        friend std::ostream &operator<<(std::ostream &os, const Matrix<T> &matrix) {
+            for (int i = 0; i < matrix.rows(); ++i) {
+                for (int j = 0; j < matrix.columns(); ++j) {
+                    os << matrix[i][j] << "\t";
+                }
+                os << std::endl;
+            }
+            return os;
+        }
+
+        bool isSquare() const {
+            return data->getColumns() == data->getRows();
+        }
+
+        const Matrix<T> diagonal() const {
+            return _diagonal();
+        }
+
+        Matrix<T> diagonal() {
+            return _diagonal();
+        }
+
+        const Matrix<T> transposed() const {
+            return _transposed();
+        }
+
+        Matrix<T> transposed() {
+            return _transposed();
+        }
+
+        const Matrix<T> submatrix(int rowOffset, int rowCount, int columnOffset, int columnCount) const {
+            return _submatrix(rowOffset, rowCount, columnOffset, columnCount);
+        }
+
+        Matrix<T> submatrix(int rowOffset, int rowCount, int columnOffset, int columnCount) {
+            return _submatrix(rowOffset, rowCount, columnOffset, columnCount);
+        }
+
+        bool isVector() const {
+            return columns() == 1;
+        }
+
+        bool isCovector() const {
+            return rows() == 1;
+        }
+
+        const Matrix<T> toDiagonalMatrix() {
+            return _toDiagonalMatrix();
+        }
+
+        const Matrix<T> column(int columnIndex) const {
+            return submatrix(0, rows(), columnIndex, 1);
+        }
+
+        Matrix<T> column(int columnIndex) {
+            return submatrix(0, rows(), columnIndex, 1);
+        }
+
+        const Matrix<T> row(int rowIndex) const {
+            return submatrix(rowIndex, 1, 0, columns());
+        }
+
+        Matrix<T> row(int rowIndex) {
+            return submatrix(rowIndex, 1, 0, columns());
+        }
+
+        T scalarProduct(const Matrix<T> other) const {
+            checkVector();
+            other.checkVector();
+
+            if (rows() != other.rows()) {
+                throw new InvalidMatrixSizeException("Must have the same number of rows");
+            }
+
+            T ret = 0;
+            for (int i = 0; i < rows(); ++i) {
+                ret += (*this)[i][0] * other[i][0];
+            }
+            return ret;
+        }
 };
 
-//VECTOR
-template<unsigned int N, class T>
-class Matrix<N, 1, T> : public BaseMatrix<N, 1, T> {
-
-protected:
-    Matrix<N, 1, T> cast() {
-        return *this;
-    }
-
-};
 
 #endif //MATRIX_MATRIX_H
