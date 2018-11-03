@@ -3,39 +3,43 @@
 
 template<typename T>
 class MatrixData {
-    private:
-        int rows, columns;
-        int refCount = 0;
+	private:
+		int rows, columns;
+		int refCount = 0;
 
-    protected:
-        MatrixData(int rows, int columns) {
-            this->rows = rows;
-            this->columns = columns;
-        }
+	protected:
+		MatrixData(int rows, int columns) {
+			this->rows = rows;
+			this->columns = columns;
+		}
 
-    public:
+	public:
 
-        virtual T &get(int row, int column) = 0;
+		virtual T get(int row, int column) = 0;
 
-        virtual ~MatrixData() {
-        }
+		virtual void set(int row, int column, T obj) {
+			throw std::exception("Unsupported operation");
+		}
 
-        void incrementRefCount() {
-            refCount++;
-        }
+		virtual ~MatrixData() {
+		}
 
-        bool decrementRefCount() {
-            refCount--;
-            return refCount == 0;
-        }
+		void incrementRefCount() {
+			refCount++;
+		}
 
-        int getRows() const {
-            return rows;
-        }
+		bool decrementRefCount() {
+			refCount--;
+			return refCount == 0;
+		}
 
-        int getColumns() const {
-            return columns;
-        }
+		int getRows() const {
+			return rows;
+		}
+
+		int getColumns() const {
+			return columns;
+		}
 };
 
 #endif //MATRIX_MATRIXDATA_H
