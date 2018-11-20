@@ -17,7 +17,7 @@ class Matrix {
     public:
         explicit Matrix(const std::shared_ptr<MatrixData<T>> &data) : data(data) {}
 
-        explicit Matrix(int height, int width) : data(std::make_shared<VectorMatrixData<T>>(height, width)) {
+        explicit Matrix(int rows, int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
 
         }
 
@@ -28,24 +28,28 @@ class Matrix {
 
     public:
 
-        T get(int x, int y) {
-            return data->get(x, y);
+        T get(int row, int col) {
+            return data->get(row, col);
         }
 
-        void set(int x, int y, T t) {
-            data->set(x, y, t);
+        void set(int row, int col, T t) {
+            data->set(row, col, t);
         }
 
-        int width() {
-            return data->width();
+        int columns() {
+            return data->columns();
         }
 
-        int height() {
-            return data->height();
+        int rows() {
+            return data->rows();
         }
 
-        Matrix<T> submatrix(int yOffset, int xOffset, int height, int width) {
-            return Matrix<T>(std::make_shared<SubmatrixMD<T>>(yOffset, xOffset, height, width, data));
+        int size() {
+            return rows() * columns();
+        }
+
+        Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) {
+            return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, data));
         }
 
         Matrix<T> transpose() {
@@ -53,7 +57,7 @@ class Matrix {
         }
 
         bool isSquared() {
-            return height() == width();
+            return rows() == columns();
         }
 
         Matrix<T> diagonal() {
@@ -64,11 +68,11 @@ class Matrix {
         }
 
         bool isVector() {
-            return width() == 1;
+            return columns() == 1;
         }
 
         bool isCovector() {
-            return height() == 1;
+            return rows() == 1;
         }
 
         Matrix<T> diagonalMatrix() {
@@ -83,12 +87,20 @@ class Matrix {
         }
 
         MatrixRowMajorIterator<T> endRowMajor() {
-            return MatrixRowMajorIterator<T>(data, height(), 0);
+            return MatrixRowMajorIterator<T>(data, rows(), 0);
+        }
+
+        MatrixColumnMajorIterator<T> beginColumnMajor() {
+            return MatrixColumnMajorIterator<T>(data, 0, 0);
+        }
+
+        MatrixColumnMajorIterator<T> endColumnMajor() {
+            return MatrixColumnMajorIterator<T>(data, 0, columns());
         }
 
         void print() {
-            for (int i = 0; i < this->height(); ++i) {
-                for (int j = 0; j < this->width(); ++j) {
+            for (int i = 0; i < this->rows(); ++i) {
+                for (int j = 0; j < this->columns(); ++j) {
                     std::cout << this->get(i, j) << ",";
                 }
                 std::cout << std::endl;

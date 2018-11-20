@@ -15,22 +15,22 @@ template<typename T>
 class MatrixData {
 
     private:
-        int _height, _width;
+        int _rows, _columns;
 
     public:
-        MatrixData(int height, int width) : _height(height), _width(width) {}
+        MatrixData(int rows, int columns) : _rows(rows), _columns(columns) {}
 
-        int width() {
-            return this->_width;
+        int columns() {
+            return this->_columns;
         }
 
-        int height() {
-            return this->_height;
+        int rows() {
+            return this->_rows;
         }
 
-        virtual T get(int x, int y) = 0;
+        virtual T get(int row, int col) = 0;
 
-        virtual void set(int x, int y, T t) {
+        virtual void set(int row, int col, T t) {
             throw "Unsupported";
         }
 
@@ -45,15 +45,15 @@ class VectorMatrixData : public MatrixData<T> {
         std::vector<T> vector;
 
     public:
-        VectorMatrixData(int height, int width) : MatrixData(height, width), vector(height * width) {
+        VectorMatrixData(int rows, int columns) : MatrixData(rows, columns), vector(rows * columns) {
         }
 
-        T get(int x, int y) override {
-            return vector[x * this->width() + y];
+        T get(int row, int col) override {
+            return vector[row * this->columns() + col];
         }
 
-        void set(int x, int y, T t) override {
-            vector[x * this->width() + y] = t;
+        void set(int row, int col, T t) override {
+            vector[row * this->columns() + col] = t;
         }
 
 };
@@ -61,9 +61,9 @@ class VectorMatrixData : public MatrixData<T> {
 
 template<typename T>
 VectorMatrixData<T> MatrixData<T>::copy() {
-    VectorMatrixData<T> ret(height(), width());
-    for (int i = 0; i < height(); ++i) {
-        for (int j = 0; j < width(); ++j) {
+    VectorMatrixData<T> ret(rows(), columns());
+    for (int i = 0; i < rows(); ++i) {
+        for (int j = 0; j < columns(); ++j) {
             ret.set(i, j, get(i, j));
         }
     }
@@ -76,23 +76,23 @@ class SubmatrixMD : public MatrixData<T> {
     private:
 
         std::shared_ptr<MatrixData<T>> wrapped;
-        int xOffset, yOffset;
+        int rowOffset, colOffset;
 
 
     public:
 
-        SubmatrixMD(int yOffset, int xOffset, int height, int width, const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(height, width),
-                                                                                                                      xOffset(xOffset),
-                                                                                                                      yOffset(yOffset),
+        SubmatrixMD(int rowOffset, int colOffset, int rows, int columns, const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(rows, columns),
+                                                                                                                      rowOffset(rowOffset),
+                                                                                                                      colOffset(colOffset),
                                                                                                                       wrapped(wrapped) {
         }
 
-        T get(int x, int y) override {
-            return wrapped->get(x + xOffset, y + yOffset);
+        T get(int row, int col) override {
+            return wrapped->get(row + rowOffset, col + colOffset);
         }
 
-        void set(int x, int y, T t) override {
-            return wrapped->set(x + xOffset, y + yOffset, t);
+        void set(int row, int col, T t) override {
+            return wrapped->set(row + rowOffset, col + colOffset, t);
         }
 
 };
@@ -107,15 +107,15 @@ class TransposedMD : public MatrixData<T> {
 
     public:
 
-        explicit TransposedMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->width(), wrapped->height()), wrapped(wrapped) {
+        explicit TransposedMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->columns(), wrapped->rows()), wrapped(wrapped) {
         }
 
-        T get(int x, int y) override {
-            return wrapped->get(y, x);
+        T get(int row, int col) override {
+            return wrapped->get(col, row);
         }
 
-        void set(int x, int y, T t) override {
-            return wrapped->set(y, x, t);
+        void set(int row, int col, T t) override {
+            return wrapped->set(col, row, t);
         }
 
 };
@@ -130,15 +130,15 @@ class DiagonalMD : public MatrixData<T> {
 
     public:
 
-        explicit DiagonalMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->height(), 1), wrapped(wrapped) {
+        explicit DiagonalMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->rows(), 1), wrapped(wrapped) {
         }
 
-        T get(int x, int y) override {
-            return wrapped->get(x, x);
+        T get(int row, int col) override {
+            return wrapped->get(row, row);
         }
 
-        void set(int x, int y, T t) override {
-            return wrapped->set(x, x, t);
+        void set(int row, int col, T t) override {
+            return wrapped->set(row, row, t);
         }
 
 };
@@ -153,13 +153,13 @@ class DiagonalMatrixMD : public MatrixData<T> {
 
     public:
 
-        explicit DiagonalMatrixMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->height(), wrapped->height()),
+        explicit DiagonalMatrixMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->rows(), wrapped->rows()),
                                                                                    wrapped(wrapped) {
         }
 
-        T get(int x, int y) override {
-            if (x == y) {
-                return wrapped->get(x, 0);
+        T get(int row, int col) override {
+            if (row == col) {
+                return wrapped->get(row, 0);
             } else {
                 return 0;
             }
