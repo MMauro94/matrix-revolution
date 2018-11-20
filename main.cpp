@@ -1,78 +1,121 @@
 #include <iostream>
 #include "Matrix.h"
 #include <vector>
+#include <memory>
 
-/*
-void memtest() {
-    std::vector<Matrix<double>> vec;
-    vec.reserve(10000);
-    for (int i = 0; i < 10000; ++i) {
-        vec.emplace_back(100, 100);
+void assert(int expected, int actual) {
+    if (expected != actual) {
+        std::cout << "ERROR: expected " << expected << ", got " << actual << std::endl;
+        exit(1);
     }
-    system("pause");
-}*/
+}
+
+void assertAll(int expected, Matrix<int> m) {
+    for (int i = 0; i < m.height(); ++i) {
+        for (int j = 0; j < m.width(); ++j) {
+            assert(expected, m.get(i, j));
+        }
+    }
+}
+
+void assertEquals(Matrix<int> m1, Matrix<int> m2) {
+    assert(m1.width(), m2.width());
+    assert(m1.height(), m2.height());
+
+    for (int i = 0; i < m1.height(); ++i) {
+        for (int j = 0; j < m1.width(); ++j) {
+            assert(m1.get(i, j), m2.get(i, j));
+        }
+    }
+}
+
+
+void test(Matrix<int> m) {
+    //TEST ASSIGNMENTS
+    for (int k = 0; k < 10; ++k) {
+        for (int i = 0; i < m.height(); ++i) {
+            for (int j = 0; j < m.width(); ++j) {
+                m.set(i, j, k);
+                assert(k, m.get(i, j));
+            }
+        }
+    }
+
+    //ASSIGN VALUES FROM [1..width*height] in row major order
+    int k = 0;
+    for (int i = 0; i < m.height(); ++i) {
+        for (int j = 0; j < m.width(); ++j) {
+            k++;
+            m.set(i, j, k);
+            assert(k, m.get(i, j));
+        }
+    }
+
+    //TEST ROW-MAJOR ITERATOR
+    k = 0;
+    for (auto it = m.beginRowMajor(); it != m.endRowMajor(); ++it) {
+        assert(++k, *it);
+    }
+    assert(m.width() * m.height(), k);
+
+    //TEST TRANSPOSE
+    if (m.height() >= 4 && m.width() >= 3) {
+        m.transpose().set(2, 3, 76);
+        assert(76, m.get(3, 2));
+    }
+    assertEquals(m, m.transpose().transpose());
+
+    //TESTI DIAGONAL
+    if (m.isSquared()) {
+        m.diagonal().set(2, 0, 54);
+        assert(54, m.get(2, 2));
+
+        assertEquals(m.diagonal(), m.diagonal().diagonalMatrix().diagonal());
+    }
+
+    //TEST DIAGONAL MATRIX
+    if (m.isVector()) {
+        auto d = m.diagonalMatrix();
+        assert(m.height(), d.width());
+        assert(m.height(), d.height());
+
+        for (int i = 0; i < d.height(); ++i) {
+            for (int j = 0; j < d.width(); ++j) {
+                if (i == j) {
+                    assert(m.get(i, 0), d.get(i, j));
+                } else {
+                    assert(0, d.get(i, j));
+                }
+            }
+        }
+    }
+
+
+}
+
 
 int main() {
-	Matrix<double> m(4, 4);
-	for (int i = 0; i < m.rows(); ++i) {
-		for (int j = 0; j < m.columns(); ++j) {
-			m[i][j] = i + j * 10;
-			std::cout << m[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
+    std::cout << "START TEST" << std::endl;
 
-	m.diagonal()[2][0] = 987;
-	m.column(1).row(2)[0][0] = 123;
-
-	std::cout << "MATRIX:" << std::endl << m << std::endl << std::endl;
-
-	std::cout << "DIAGONAL:" << std::endl << m.diagonal() << std::endl << std::endl;
-
-	std::cout << "TRANSPOSED:" << std::endl << m.transposed() << std::endl << std::endl;
-
-	std::cout << "SUBMATRIX:" << std::endl << m.submatrix(1, 2, 2, 2) << std::endl << std::endl;
-
-	std::cout << "DIAGONAL MATRIX:" << std::endl << m.diagonal().toDiagonalMatrix() << std::endl << std::endl;
-
-	std::cout << "COLUMN 2:" << std::endl << m.column(2) << std::endl << std::endl;
-
-	std::cout << "ROW 1:" << std::endl << m.row(1) << std::endl << std::endl;
-
-	std::cout << "MATRIX COPIED:" << std::endl << m.copy() << std::endl << std::endl;
-	std::cout << "MATRIX WITH DIFFERENT FIRST:" << std::endl << m.with(0, 0, 12345) << std::endl << std::endl;
-	std::cout << "MATRIX + 12:" << std::endl << m + 12 << std::endl << std::endl;
-	std::cout << "MATRIX - 9:" << std::endl << m - 9 << std::endl << std::endl;
-	std::cout << "MATRIX * 5:" << std::endl << m * 5 << std::endl << std::endl;
-	std::cout << "MATRIX / 3:" << std::endl << m / 3 << std::endl << std::endl;
+    Matrix<int> sq(10, 10);
+    Matrix<int> rect(5, 10);
+    Matrix<int> vector(10, 1);
 
 
-	std::cout << "M*M:" << std::endl << m * m << std::endl << std::endl;
-	std::cout << "M+M:" << std::endl << m + m << std::endl << std::endl;
-	std::cout << "M-M:" << std::endl << m - m << std::endl << std::endl;
+    assertAll(0, sq);
+    assertAll(0, rect);
+    assertAll(0, vector);
 
 
-/*
-    //PROPERTIES
-    std::cout << "IS TRIANGULAR:" << m.isTriangular() << std::endl;
-    std::cout << "IS UPPER TRIANGULAR:" << m.isUpperTriangular() << std::endl;
-    std::cout << "IS LOWER TRIANGULAR:" << m.isLowerTriangular() << std::endl;
-    std::cout << "IS DIAGONAL:" << m.isDiagonal() << std::endl << std::endl;
+    test(sq);
+    test(rect);
+    test(vector);
 
-    auto lu = m.luDecomposition();
-    std::cout << "LU DECOMPOSITION:" << std::endl
-              << "L:" << std::endl << lu.first << std::endl
-              << "U:" << std::endl << lu.second << std::endl
-              << "LU:" << std::endl << lu.first * lu.second << std::endl << std::endl;
+    assertAll(0, sq);
+    assertAll(0, rect);
+    assertAll(0, vector);
 
-    double determinant = m.determinant();
-    std::cout << "DETERMINANT: " << determinant << std::endl;
+    std::cout << "ALL TESTS PASSED";
 
-*/
-	/*
-	const auto m2 = (m + 100) - 10;
-	std::cout << m;
-	std::cout << m2;*/
-
-	return 0;
+    return 0;
 }
