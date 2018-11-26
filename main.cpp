@@ -13,7 +13,7 @@ void assert(int expected, int actual) {
 void assertAll(int expected, Matrix<int> m) {
     for (int r = 0; r < m.rows(); ++r) {
         for (int c = 0; c < m.columns(); ++c) {
-            assert(expected, m.get(r, c));
+            assert(expected, m(r, c));
         }
     }
 }
@@ -24,12 +24,12 @@ void assertEquals(Matrix<int> m1, Matrix<int> m2) {
 
     for (int r = 0; r < m1.rows(); ++r) {
         for (int c = 0; c < m1.columns(); ++c) {
-            assert(m1.get(r, c), m2.get(r, c));
+            assert(m1(r, c), m2(r, c));
         }
     }
 }
 
-template <class IT>
+template<class IT>
 void testIterator(IT begin, IT end, int size) {
     int k = 0;
     for (auto it = begin; it != end; ++it) {
@@ -49,8 +49,8 @@ void test(Matrix<int> m) {
     for (int k = 0; k < 10; ++k) {
         for (int r = 0; r < m.rows(); ++r) {
             for (int c = 0; c < m.columns(); ++c) {
-                m.set(r, c, k);
-                assert(k, m.get(r, c));
+                m(r, c) = k;
+                assert(k, m(r, c));
             }
         }
     }
@@ -60,8 +60,8 @@ void test(Matrix<int> m) {
     for (int r = 0; r < m.rows(); ++r) {
         for (int c = 0; c < m.columns(); ++c) {
             k++;
-            m.set(r, c, k);
-            assert(k, m.get(r, c));
+            m(r, c) = k;
+            assert(k, m(r, c));
         }
     }
 
@@ -74,8 +74,8 @@ void test(Matrix<int> m) {
     for (int c = 0; c < m.columns(); ++c) {
         for (int r = 0; r < m.rows(); ++r) {
             k++;
-            m.set(r, c, k);
-            assert(k, m.get(r, c));
+            m(r, c) = k;
+            assert(k, m(r, c));
         }
     }
 
@@ -85,15 +85,15 @@ void test(Matrix<int> m) {
 
     //TEST TRANSPOSE
     if (m.rows() >= 4 && m.columns() >= 3) {
-        m.transpose().set(2, 3, 76);
-        assert(76, m.get(3, 2));
+        m.transpose()(2, 3) = 76;
+        assert(76, m(3, 2));
     }
     assertEquals(m, m.transpose().transpose());
 
     //TESTI DIAGONAL
     if (m.isSquared()) {
-        m.diagonal().set(2, 0, 54);
-        assert(54, m.get(2, 2));
+        m.diagonal()(2, 0) = 54;
+        assert(54, m(2, 2));
 
         assertEquals(m.diagonal(), m.diagonal().diagonalMatrix().diagonal());
     }
@@ -107,9 +107,9 @@ void test(Matrix<int> m) {
         for (int r = 0; r < d.rows(); ++r) {
             for (int c = 0; c < d.columns(); ++c) {
                 if (r == c) {
-                    assert(m.get(r, 0), d.get(r, c));
+                    assert(m(r, 0), d(r, c));
                 } else {
-                    assert(0, d.get(r, c));
+                    assert(0, d(r, c));
                 }
             }
         }
@@ -118,11 +118,11 @@ void test(Matrix<int> m) {
     //TEST SUBMATRIX
     if (m.rows() >= 4 && m.columns() >= 4) {
         auto sm = m.submatrix(2, 3, 2, 1);
-        assert(m.get(2, 3), sm.get(0, 0));
-        assert(m.get(3, 3), sm.get(1, 0));
+        assert(m(2, 3), sm(0, 0));
+        assert(m(3, 3), sm(1, 0));
 
-        sm.set(0, 0, 123);
-        assert(123, m.get(2, 3));
+        sm(0, 0) = 123;
+        assert(123, m(2, 3));
     }
 
     assertEquals(m, m.submatrix(0, 0, m.rows(), m.columns()));
@@ -130,6 +130,11 @@ void test(Matrix<int> m) {
 
 
 int main() {
+    /*
+     * MAIN THAT PERFORMS SOME TESTS
+     * IN CASE OF FAILURE, THE PROGRAM EXITS
+     */
+
     std::cout << "START TEST" << std::endl;
 
     Matrix<int> sq(10, 10);
@@ -150,7 +155,17 @@ int main() {
     assertAll(0, rect);
     assertAll(0, vector);
 
-    std::cout << "ALL TESTS PASSED";
+    std::cout << "ALL TESTS PASSED" << std::endl;
+
+    int k=0;
+    for (int row = 0; row < sq.rows(); ++row) {
+        for (int col = 0; col < sq.columns(); ++col) {
+            sq(row, col) = k++;
+        }
+    }
+
+    std::cout << "TEST PRINTING:" << std::endl;
+    sq.print("%02d");
 
     return 0;
 }

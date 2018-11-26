@@ -1,7 +1,3 @@
-//
-// Created by molin on 20/11/2018.
-//
-
 #ifndef MATRIX_MATRIXDATA_H
 #define MATRIX_MATRIXDATA_H
 
@@ -11,6 +7,10 @@
 template<typename T>
 class VectorMatrixData;
 
+/**
+ * Abstract class that exposes the data of the matrix
+ * @tparam T type of the data
+ */
 template<typename T>
 class MatrixData {
 
@@ -20,24 +20,47 @@ class MatrixData {
     public:
         MatrixData(int rows, int columns) : _rows(rows), _columns(columns) {}
 
-        int columns() {
+        /**
+         * @return number of columns
+         */
+        int columns() const {
             return this->_columns;
         }
 
-        int rows() {
+        /**
+         * @return number of rows
+         */
+        int rows() const {
             return this->_rows;
         }
 
-        virtual T get(int row, int col) = 0;
+        /**
+         * @param row the row index
+         * @param col the column index
+         * @return the value at the given position
+         */
+        virtual T get(int row, int col) const = 0;
 
+        /**
+         * Sets the new value at the given position. Can throw exception if the operation is not supported.
+         * @param row the row index
+         * @param col the column index
+         * @param t the new value
+         */
         virtual void set(int row, int col, T t) {
             throw "Unsupported";
         }
 
+        /**
+         * @return a copy of this data
+         */
         VectorMatrixData<T> copy();
 };
 
-
+/**
+ * Implementation of <code>MatrixData</code> that actually holds the value in a <code>std::vector</code>
+ * @tparam T type of the data
+ */
 template<typename T>
 class VectorMatrixData : public MatrixData<T> {
 
@@ -48,7 +71,7 @@ class VectorMatrixData : public MatrixData<T> {
         VectorMatrixData(int rows, int columns) : MatrixData(rows, columns), vector(rows * columns) {
         }
 
-        T get(int row, int col) override {
+        T get(int row, int col) const override {
             return vector[row * this->columns() + col];
         }
 
@@ -57,7 +80,6 @@ class VectorMatrixData : public MatrixData<T> {
         }
 
 };
-
 
 template<typename T>
 VectorMatrixData<T> MatrixData<T>::copy() {
@@ -70,6 +92,12 @@ VectorMatrixData<T> MatrixData<T>::copy() {
     return ret;
 }
 
+
+
+/**
+ * Implementation of <code>MatrixData</code> that exposes a submatrix of another <code>MatrixData</code>
+ * @tparam T type of the data
+ */
 template<typename T>
 class SubmatrixMD : public MatrixData<T> {
 
@@ -82,12 +110,12 @@ class SubmatrixMD : public MatrixData<T> {
     public:
 
         SubmatrixMD(int rowOffset, int colOffset, int rows, int columns, const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(rows, columns),
-                                                                                                                      rowOffset(rowOffset),
-                                                                                                                      colOffset(colOffset),
-                                                                                                                      wrapped(wrapped) {
+                                                                                                                          rowOffset(rowOffset),
+                                                                                                                          colOffset(colOffset),
+                                                                                                                          wrapped(wrapped) {
         }
 
-        T get(int row, int col) override {
+        T get(int row, int col) const override {
             return wrapped->get(row + rowOffset, col + colOffset);
         }
 
@@ -97,7 +125,10 @@ class SubmatrixMD : public MatrixData<T> {
 
 };
 
-
+/**
+ * Implementation of <code>MatrixData</code> that exposes the transposed matrix of another <code>MatrixData</code>
+ * @tparam T type of the data
+ */
 template<typename T>
 class TransposedMD : public MatrixData<T> {
 
@@ -110,7 +141,7 @@ class TransposedMD : public MatrixData<T> {
         explicit TransposedMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->columns(), wrapped->rows()), wrapped(wrapped) {
         }
 
-        T get(int row, int col) override {
+        T get(int row, int col) const override {
             return wrapped->get(col, row);
         }
 
@@ -120,7 +151,10 @@ class TransposedMD : public MatrixData<T> {
 
 };
 
-
+/**
+ * Implementation of <code>MatrixData</code> that exposes the diagonal vector of another squared <code>MatrixData</code>
+ * @tparam T type of the data
+ */
 template<typename T>
 class DiagonalMD : public MatrixData<T> {
 
@@ -133,7 +167,7 @@ class DiagonalMD : public MatrixData<T> {
         explicit DiagonalMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData(wrapped->rows(), 1), wrapped(wrapped) {
         }
 
-        T get(int row, int col) override {
+        T get(int row, int col) const override {
             return wrapped->get(row, row);
         }
 
@@ -143,7 +177,10 @@ class DiagonalMD : public MatrixData<T> {
 
 };
 
-
+/**
+ * Implementation of <code>MatrixData</code> that exposes a square diagonal matrix of another vector <code>MatrixData</code>
+ * @tparam T type of the data
+ */
 template<typename T>
 class DiagonalMatrixMD : public MatrixData<T> {
 
@@ -157,7 +194,7 @@ class DiagonalMatrixMD : public MatrixData<T> {
                                                                                    wrapped(wrapped) {
         }
 
-        T get(int row, int col) override {
+        T get(int row, int col) const override {
             if (row == col) {
                 return wrapped->get(row, 0);
             } else {

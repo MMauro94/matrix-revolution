@@ -1,13 +1,13 @@
-//
-// Created by molin on 20/11/2018.
-//
-
 #ifndef MATRIX_MATRIXITERATOR_H
 #define MATRIX_MATRIXITERATOR_H
 
 #include <memory>
 #include "MatrixData.h"
 
+/**
+ * Base iterator with common methods
+ * @tparam T type of data
+ */
 template<typename T>
 class BaseMatrixIterator {
     protected:
@@ -28,13 +28,12 @@ class BaseMatrixIterator {
         bool operator!=(const BaseMatrixIterator<T> &other) const {
             return !(*this == other);
         }
-
-        BaseMatrixIterator<T> &operator=(T t) {
-            data->set(row, col, t);
-            return this;
-        }
 };
 
+/**
+ * Iterator that iterates in row-major order
+ * @tparam T type of data
+ */
 template<typename T>
 class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
     public:
@@ -60,6 +59,10 @@ class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
 
 };
 
+/**
+ * Iterator that iterates in column-major order
+ * @tparam T type of data
+ */
 template<typename T>
 class MatrixColumnMajorIterator : public BaseMatrixIterator<T> {
     public:
