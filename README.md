@@ -95,4 +95,9 @@ The `(int, int)` operator of `Matrix`, used to access and set the cells, returns
 This is done because for some operations (such as returning the zeroes in `diagonalMatrix`) it's not possible to return a reference to the value.
 
 A `const Matrix<T>` cannot be modified, so it needs to return a `const MatrixCell<T>`. If we allowed the copy constructor it would be possible to assign a `const MatrixCell<T>` to a `MatrixCell<T>`, thus allowing to modify a `const Matrix<T>`.
-For this reason we decided to delete the copy constructor. We could have triggered a deep copy, but this behaviour would have been unexpected by the end user and has no practical use.     
+For this reason we decided to delete the copy constructor. We could have triggered a deep copy, but this behaviour would have been unexpected by the end user and has no practical use.
+
+## Testing
+In the `tests.cpp` file there is a main function that can be called to ensure that all tests are successful. Every major method is tested. 
+
+The library has been complied and tested with [CMake](https://cmake.org) under Windows 10.
