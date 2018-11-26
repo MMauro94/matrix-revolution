@@ -2,7 +2,7 @@
 A simple C++ library to work with matrices.
 
 ## Context
-This library was made for the Advanced Algorithms class held by professor Andrea Torsello at Università Ca' Foscari - Venice in the academic year 2018/19.
+This library was made for the [Advanced Algorithms and Programming Methods](https://www.unive.it/data/insegnamento/274858) class held by professor [Andrea Torsello](https://www.unive.it/data/5115/5590629) at [Ca' Foscari University - Venice](https://www.unive.it) in the academic year 2018/19.
 
 Made by Mauro Molin (857855) and Marco Marangoni (858450).
 
@@ -96,6 +96,9 @@ This is done because for some operations (such as returning the zeroes in `diago
 
 A `const Matrix<T>` cannot be modified, so it needs to return a `const MatrixCell<T>`. If we allowed the copy constructor it would be possible to assign a `const MatrixCell<T>` to a `MatrixCell<T>`, thus allowing to modify a `const Matrix<T>`.
 For this reason we decided to delete the copy constructor. We could have triggered a deep copy, but this behaviour would have been unexpected by the end user and has no practical use.
+
+### Vectors and covectors
+Vectors and covectors are not specially handled. They are simply a `nx1` and `1xn` matrices. There are the methods `isVector()` and `isCovector()`. We chose to do this because they are simply a property of a matrix, and are not a characterization (e.g. a `1x1` matrix is both a vector and a covector).
 
 ## Testing
 In the `tests.cpp` file there is a main function that can be called to ensure that all tests are successful. Every major method is tested. 
