@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 #include "MatrixData.h"
 #include "MatrixIterator.h"
 #include "MatrixCell.h"
@@ -13,173 +14,173 @@
  */
 template<typename T>
 class Matrix {
-    protected:
-        std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
+	protected:
+		std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
 
-    private:
-        /** Private constructor that accepts a pointer to the data */
-        explicit Matrix(const std::shared_ptr<MatrixData<T>> &data) : data(data) {}
+	private:
+		/** Private constructor that accepts a pointer to the data */
+		explicit Matrix(const std::shared_ptr<MatrixData<T>> &data) : data(data) {}
 
-    public:
+	public:
 
-        /**
-         * Base constructor that creates a new matrix of the given size
-         * @param rows number of rows
-         * @param columns number of columns
-         */
-        explicit Matrix(int rows, int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
-        }
-
-
-        /**
-         * Copy constructor that triggers a deep copy of the matrix
-         * @param other the other matrix
-         */
-        Matrix(const Matrix<T> &other) : data(std::make_shared<VectorMatrixData<T>>(other.data->copy())) {
-        }
-
-        /**
-         * Move constructor. Default behaviour.
-         * @param other the other matrix
-         */
-        Matrix(Matrix<T> &&other) noexcept = default;
+		/**
+		 * Base constructor that creates a new matrix of the given size
+		 * @param rows number of rows
+		 * @param columns number of columns
+		 */
+		explicit Matrix(int rows, int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
+		}
 
 
-        const MatrixCell<T> operator()(int row, int col) const {
-            return MatrixCell<T>(data, row, col);
-        }
+		/**
+		 * Copy constructor that triggers a deep copy of the matrix
+		 * @param other the other matrix
+		 */
+		Matrix(const Matrix<T> &other) : data(std::make_shared<VectorMatrixData<T>>(other.data->copy())) {
+		}
 
-        MatrixCell<T> operator()(int row, int col) {
-            return MatrixCell<T>(data, row, col);
-        }
+		/**
+		 * Move constructor. Default behaviour.
+		 * @param other the other matrix
+		 */
+		Matrix(Matrix<T> &&other) noexcept = default;
 
-        /**
-         * @return the number of columns
-         */
-        int columns() const {
-            return data->columns();
-        }
 
-        /**
-         * @return the number of rows
-         */
-        int rows() const {
-            return data->rows();
-        }
+		const MatrixCell<T> operator()(int row, int col) const {
+			return MatrixCell<T>(this->data, row, col);
+		}
 
-        /**
-         * @return the total number of cells (rows*columns)
-         */
-        int size() const {
-            return rows() * columns();
-        }
+		MatrixCell<T> operator()(int row, int col) {
+			return MatrixCell<T>(this->data, row, col);
+		}
 
-        Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) {
-            return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, data));
-        }
+		/**
+		 * @return the number of columns
+		 */
+		int columns() const {
+			return this->data->columns();
+		}
 
-        const Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) const {
-            return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, data));
-        }
+		/**
+		 * @return the number of rows
+		 */
+		int rows() const {
+			return this->data->rows();
+		}
 
-        Matrix<T> transpose() {
-            return Matrix<T>(std::make_shared<TransposedMD<T>>(data));
-        }
+		/**
+		 * @return the total number of cells (rows*columns)
+		 */
+		int size() const {
+			return rows() * columns();
+		}
 
-        const Matrix<T> transpose() const {
-            return Matrix<T>(std::make_shared<TransposedMD<T>>(data));
-        }
+		Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) {
+			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
+		}
 
-        /**
-         * @return true if this matrix is a square (has the same number of rows and columns)
-         */
-        bool isSquared() const {
-            return rows() == columns();
-        }
+		const Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) const {
+			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
+		}
 
-        Matrix<T> diagonal() {
-            if (!isSquared()) {
-                throw "diagonal() can only be called on squared matrices";
-            }
-            return Matrix<T>(std::make_shared<DiagonalMD<T>>(data));
-        }
+		Matrix<T> transpose() {
+			return Matrix<T>(std::make_shared<TransposedMD<T>>(this->data));
+		}
 
-        const Matrix<T> diagonal() const {
-            if (!isSquared()) {
-                throw "diagonal() can only be called on squared matrices";
-            }
-            return Matrix<T>(std::make_shared<DiagonalMD<T>>(data));
-        }
+		const Matrix<T> transpose() const {
+			return Matrix<T>(std::make_shared<TransposedMD<T>>(this->data));
+		}
 
-        /**
-         * @return true if this matrix is a vector (has only one column)
-         */
-        bool isVector() const {
-            return columns() == 1;
-        }
+		/**
+		 * @return true if this matrix is a square (has the same number of rows and columns)
+		 */
+		bool isSquared() const {
+			return rows() == columns();
+		}
 
-        /**
-         * @return true if this matrix is a covector (has only one row)
-         */
-        bool isCovector() const {
-            return rows() == 1;
-        }
+		Matrix<T> diagonal() {
+			if (!isSquared()) {
+				throw "diagonal() can only be called on squared matrices";
+			}
+			return Matrix<T>(std::make_shared<DiagonalMD<T>>(this->data));
+		}
 
-        /**
-         * Can only be called on a vector.
-         * @return an immutable diagonal square matrix that has this vector as diagonal and <code>0</code> (zero) in all other positions.
-         */
-        const Matrix<T> diagonalMatrix() const {
-            if (!isVector()) {
-                throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
-            }
-            return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(data));
-        }
+		const Matrix<T> diagonal() const {
+			if (!isSquared()) {
+				throw "diagonal() can only be called on squared matrices";
+			}
+			return Matrix<T>(std::make_shared<DiagonalMD<T>>(this->data));
+		}
 
-        /**
-         * @return an iterator on the first position. This iterator moves from left to right, and then top to bottom.
-         */
-        MatrixRowMajorIterator<T> beginRowMajor() const {
-            return MatrixRowMajorIterator<T>(data, 0, 0);
-        }
+		/**
+		 * @return true if this matrix is a vector (has only one column)
+		 */
+		bool isVector() const {
+			return columns() == 1;
+		}
 
-        /**
-         * @return an iterator on the last position. This iterator moves from left to right, and then top to bottom.
-         */
-        MatrixRowMajorIterator<T> endRowMajor() const {
-            return MatrixRowMajorIterator<T>(data, rows(), 0);
-        }
+		/**
+		 * @return true if this matrix is a covector (has only one row)
+		 */
+		bool isCovector() const {
+			return rows() == 1;
+		}
 
-        /**
-         * @return an iterator on the first position. This iterator moves from top to bottom, and then left to right.
-         */
-        MatrixColumnMajorIterator<T> beginColumnMajor() const {
-            return MatrixColumnMajorIterator<T>(data, 0, 0);
-        }
+		/**
+		 * Can only be called on a vector.
+		 * @return an immutable diagonal square matrix that has this vector as diagonal and <code>0</code> (zero) in all other positions.
+		 */
+		const Matrix<T> diagonalMatrix() const {
+			if (!isVector()) {
+				throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
+			}
+			return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(this->data));
+		}
 
-        /**
-        * @return an iterator on the last position. This iterator moves from top to bottom, and then left to right.
-        */
-        MatrixColumnMajorIterator<T> endColumnMajor() const {
-            return MatrixColumnMajorIterator<T>(data, 0, columns());
-        }
+		/**
+		 * @return an iterator on the first position. This iterator moves from left to right, and then top to bottom.
+		 */
+		MatrixRowMajorIterator<T> beginRowMajor() const {
+			return MatrixRowMajorIterator<T>(this->data, 0, 0);
+		}
 
-        /**
-         * Prints the content of this matrix to the standard output
-         * @param format the format string to use when printing values
-         * @param separator the separator between each column
-         */
-        void print(const char *format, const char *separator = "  ") const {
-            for (int row = 0; row < rows(); ++row) {
-                for (int col = 0; col < columns(); ++col) {
-                    if (col > 0) {
-                        std::cout << separator;
-                    }
-                    printf(format, (T) (*this)(row, col));
-                }
-                std::cout << std::endl;
-            }
-        }
+		/**
+		 * @return an iterator on the last position. This iterator moves from left to right, and then top to bottom.
+		 */
+		MatrixRowMajorIterator<T> endRowMajor() const {
+			return MatrixRowMajorIterator<T>(this->data, rows(), 0);
+		}
+
+		/**
+		 * @return an iterator on the first position. This iterator moves from top to bottom, and then left to right.
+		 */
+		MatrixColumnMajorIterator<T> beginColumnMajor() const {
+			return MatrixColumnMajorIterator<T>(this->data, 0, 0);
+		}
+
+		/**
+		* @return an iterator on the last position. This iterator moves from top to bottom, and then left to right.
+		*/
+		MatrixColumnMajorIterator<T> endColumnMajor() const {
+			return MatrixColumnMajorIterator<T>(this->data, 0, columns());
+		}
+
+		/**
+		 * Prints the content of this matrix to the standard output
+		 * @param format the format string to use when printing values
+		 * @param separator the separator between each column
+		 */
+		void print(const char *format, const char *separator = "  ") const {
+			for (int row = 0; row < this->rows(); ++row) {
+				for (int col = 0; col < this->columns(); ++col) {
+					if (col > 0) {
+						std::cout << separator;
+					}
+					printf(format, (T) (*this)(row, col));
+				}
+				std::cout << std::endl;
+			}
+		}
 };
 
 #endif //MATRIX_MATRIX_H

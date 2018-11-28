@@ -1,7 +1,7 @@
 #include <iostream>
-#include "Matrix.h"
 #include <vector>
 #include <memory>
+#include "Matrix.h"
 
 void assert(int expected, int actual) {
     if (expected != actual) {

@@ -25,12 +25,12 @@ class MatrixCell {
 
 
         MatrixCell<T> &operator=(T const &obj) {
-            data->set(row, col, obj);
+            this->data->set(this->row, this->col, obj);
             return *this;
         }
 
         operator const T() const {
-            return data->get(row, col);
+            return this->data->get(this->row, this->col);
         }
 
 };
