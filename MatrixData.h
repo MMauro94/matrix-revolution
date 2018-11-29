@@ -20,6 +20,8 @@ class MatrixData {
 	public:
 		MatrixData(int rows, int columns) : _rows(rows), _columns(columns) {}
 
+		virtual ~MatrixData() = default;
+
 		/**
 		 * @return number of columns
 		 */
@@ -91,7 +93,6 @@ VectorMatrixData<T> MatrixData<T>::copy() {
 	}
 	return ret;
 }
-
 
 /**
  * Implementation of <code>MatrixData</code> that exposes a submatrix of another <code>MatrixData</code>
