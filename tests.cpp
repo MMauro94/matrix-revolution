@@ -2,6 +2,16 @@
 #include <vector>
 #include <memory>
 #include "Matrix.h"
+#include "StaticSizeMatrix.h"
+
+
+void initializeCells(Matrix<int> &m, int rowMultiplier, int colMultiplier) {
+	for (int row = 0; row < m.rows(); ++row) {
+		for (int col = 0; col < m.columns(); ++col) {
+			m(row, col) = row * rowMultiplier + col * colMultiplier;
+		}
+	}
+}
 
 void assert(int expected, int actual) {
 	if (expected != actual) {
@@ -129,6 +139,30 @@ void test(Matrix<int> m) {
 }
 
 
+void testMultiplicationAndAddition() {
+	StaticSizeMatrix<4, 3, int> m1;
+	StaticSizeMatrix<3, 5, int> m2;
+	initializeCells(m1, 12, 5);
+	initializeCells(m2, 7, 13);
+	const StaticSizeMatrix<4, 3, int> &sum1 = m1 + m1;
+	const StaticSizeMatrix<4, 5, int> &multiplication1 = m1 * m2;
+
+	m1.print("%02d");
+	m2.print("%02d");
+	multiplication1.print("%04d");
+	assert(92, sum1.get<3, 2>());
+	assert(7327, multiplication1.get<3, 4>());
+
+
+	StaticSizeMatrix<42, 100, int> m3;
+	StaticSizeMatrix<100, 28, int> m4;
+	StaticSizeMatrix<28, 14, int> m5;
+	initializeCells(m3, 12, 5);
+	initializeCells(m4, 7, 13);
+	initializeCells(m5, 3, 5);
+	const StaticSizeMatrix<42, 14, int> &multiplication2 = m3 * m4 * m5;
+}
+
 int main() {
 	/*
 	 * MAIN THAT PERFORMS SOME TESTS
@@ -138,34 +172,42 @@ int main() {
 	std::cout << "START TEST" << std::endl;
 
 	Matrix<int> sq(10, 10);
+	StaticSizeMatrix<15, 20, int> static1;
+	StaticSizeMatrix<20, 3, int> static2;
 	Matrix<int> rect(5, 10);
 	Matrix<int> vector(10, 1);
 
+	const StaticSizeMatrix<20, 15, int> &transposed = static1.transpose();
+	const StaticSizeMatrix<4, 5, int> &submatrix = static1.submatrix<6, 7, 4, 5>();
+
+	int read = static1.get<7, 0>();
+	static1.get<1, 0>() = read;
 
 	assertAll(0, sq);
+	assertAll(0, static1);
+	assertAll(0, transposed);
+	assertAll(0, submatrix);
 	assertAll(0, rect);
 	assertAll(0, vector);
 
-
 	test(sq);
+	test(static1);
+	test(transposed);
+	test(submatrix);
 	test(rect);
 	test(vector);
 
 	assertAll(0, sq);
+	assertAll(0, static1);
+	assertAll(0, transposed);
+	assertAll(0, submatrix);
 	assertAll(0, rect);
 	assertAll(0, vector);
 
+	std::cout << "Testing multiplication" << std::endl;
+
+	testMultiplicationAndAddition();
+
 	std::cout << "ALL TESTS PASSED" << std::endl;
-
-	int k = 0;
-	for (int row = 0; row < sq.rows(); ++row) {
-		for (int col = 0; col < sq.columns(); ++col) {
-			sq(row, col) = k++;
-		}
-	}
-
-	std::cout << "TEST PRINTING:" << std::endl;
-	sq.print("%02d");
-
 	return 0;
 }

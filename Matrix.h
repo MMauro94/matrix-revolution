@@ -17,7 +17,6 @@ class Matrix {
 	protected:
 		std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
 
-	private:
 		/** Private constructor that accepts a pointer to the data */
 		explicit Matrix(const std::shared_ptr<MatrixData<T>> &data) : data(data) {}
 
@@ -45,9 +44,8 @@ class Matrix {
 		 */
 		Matrix(Matrix<T> &&other) noexcept = default;
 
-
-		const MatrixCell<T> operator()(int row, int col) const {
-			return MatrixCell<T>(this->data, row, col);
+		const T operator()(int row, int col) const {
+			return this->data->get(row, col);
 		}
 
 		MatrixCell<T> operator()(int row, int col) {
@@ -91,13 +89,6 @@ class Matrix {
 			return Matrix<T>(std::make_shared<TransposedMD<T>>(this->data));
 		}
 
-		/**
-		 * @return true if this matrix is a square (has the same number of rows and columns)
-		 */
-		bool isSquared() const {
-			return rows() == columns();
-		}
-
 		Matrix<T> diagonal() {
 			if (!isSquared()) {
 				throw "diagonal() can only be called on squared matrices";
@@ -113,6 +104,44 @@ class Matrix {
 		}
 
 		/**
+		* Can only be called on a vector.
+		* @return an immutable diagonal square matrix that has this vector as diagonal and <code>0</code> (zero) in all other positions.
+		*/
+		const Matrix<T> diagonalMatrix() const {
+			if (!isVector()) {
+				throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
+			}
+			return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(this->data));
+		}
+
+		/**
+		 * Multiplies the two given matrices
+		 */
+		const Matrix<T> operator*(Matrix<T> &another) const {
+			if (this->columns() != another.rows()) {
+				throw "Multiplication should be performed on compatible matrices";
+			}
+			return Matrix<T>(std::make_shared<MultiplyMatrix<T>>(this->data, another.data));
+		}
+
+		/**
+		 * Adds the two given matrices
+		 */
+		const Matrix<T> operator+(Matrix<T> &another) const {
+			if (this->columns() != another.columns() || this->rows() != another.rows()) {
+				throw "Addetion should be performed on compatible matrices";
+			}
+			return Matrix<T>(std::make_shared<SumMatrix<T>>(this->data, another.data));
+		}
+
+		/**
+ 		 * @return true if this matrix is a square (has the same number of rows and columns)
+ 		 */
+		bool isSquared() const {
+			return rows() == columns();
+		}
+
+		/**
 		 * @return true if this matrix is a vector (has only one column)
 		 */
 		bool isVector() const {
@@ -120,22 +149,12 @@ class Matrix {
 		}
 
 		/**
-		 * @return true if this matrix is a covector (has only one row)
-		 */
+		  * @return true if this matrix is a covector (has only one row)
+		*/
 		bool isCovector() const {
 			return rows() == 1;
 		}
 
-		/**
-		 * Can only be called on a vector.
-		 * @return an immutable diagonal square matrix that has this vector as diagonal and <code>0</code> (zero) in all other positions.
-		 */
-		const Matrix<T> diagonalMatrix() const {
-			if (!isVector()) {
-				throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
-			}
-			return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(this->data));
-		}
 
 		/**
 		 * @return an iterator on the first position. This iterator moves from left to right, and then top to bottom.
@@ -176,7 +195,10 @@ class Matrix {
 					if (col > 0) {
 						std::cout << separator;
 					}
+					//Since we are mixing cout and format, buffers need to be flushed
+					std::cout.flush();
 					printf(format, (T) (*this)(row, col));
+					fflush(stdout);
 				}
 				std::cout << std::endl;
 			}

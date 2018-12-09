@@ -205,4 +205,54 @@ class DiagonalMatrixMD : public MatrixData<T> {
 
 };
 
+/**
+ * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
+ * @tparam T type of the data
+ */
+template<typename T>
+class MultiplyMatrix : public MatrixData<T> {
+
+	private:
+		std::shared_ptr<MatrixData<T>> first;
+		std::shared_ptr<MatrixData<T>> second;
+
+	public:
+
+		explicit MultiplyMatrix(const std::shared_ptr<MatrixData<T>> &first, const std::shared_ptr<MatrixData<T>> &second) :
+				MatrixData<T>(first->rows(), second->columns()), first(first), second(second) {
+		}
+
+		T get(int row, int col) const override {
+			T ret = 0;
+			for (int j = 0; j < first->columns(); j++) {
+				ret += this->first->get(row, j) * this->second->get(j, col);
+			}
+			return ret;
+		}
+
+};
+
+/**
+ * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
+ * @tparam T type of the data
+ */
+template<typename T>
+class SumMatrix : public MatrixData<T> {
+
+	private:
+		std::shared_ptr<MatrixData<T>> first;
+		std::shared_ptr<MatrixData<T>> second;
+
+	public:
+
+		explicit SumMatrix(const std::shared_ptr<MatrixData<T>> &first, const std::shared_ptr<MatrixData<T>> &second) :
+				MatrixData<T>(first->rows(), second->columns()), first(first), second(second) {
+		}
+
+		T get(int row, int col) const override {
+			return this->first->get(row, col) + this->second->get(row, col);
+		}
+
+};
+
 #endif //MATRIX_MATRIXDATA_H
