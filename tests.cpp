@@ -6,8 +6,8 @@
 
 
 void initializeCells(Matrix<int> &m, int rowMultiplier, int colMultiplier) {
-	for (int row = 0; row < m.rows(); ++row) {
-		for (int col = 0; col < m.columns(); ++col) {
+	for (unsigned int row = 0; row < m.rows(); ++row) {
+		for (unsigned int col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
 		}
 	}
@@ -21,8 +21,8 @@ void assert(int expected, int actual) {
 }
 
 void assertAll(int expected, Matrix<int> m) {
-	for (int r = 0; r < m.rows(); ++r) {
-		for (int c = 0; c < m.columns(); ++c) {
+	for (unsigned int r = 0; r < m.rows(); ++r) {
+		for (unsigned int c = 0; c < m.columns(); ++c) {
 			assert(expected, m(r, c));
 		}
 	}
@@ -32,8 +32,8 @@ void assertEquals(Matrix<int> m1, Matrix<int> m2) {
 	assert(m1.columns(), m2.columns());
 	assert(m1.rows(), m2.rows());
 
-	for (int r = 0; r < m1.rows(); ++r) {
-		for (int c = 0; c < m1.columns(); ++c) {
+	for (unsigned int r = 0; r < m1.rows(); ++r) {
+		for (unsigned int c = 0; c < m1.columns(); ++c) {
 			assert(m1(r, c), m2(r, c));
 		}
 	}
@@ -57,8 +57,8 @@ void testIterator(IT begin, IT end, int size) {
 void test(Matrix<int> m) {
 	//TEST ASSIGNMENTS
 	for (int k = 0; k < 10; ++k) {
-		for (int r = 0; r < m.rows(); ++r) {
-			for (int c = 0; c < m.columns(); ++c) {
+		for (unsigned int r = 0; r < m.rows(); ++r) {
+			for (unsigned int c = 0; c < m.columns(); ++c) {
 				m(r, c) = k;
 				assert(k, m(r, c));
 			}
@@ -67,8 +67,8 @@ void test(Matrix<int> m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in row major order
 	int k = 0;
-	for (int r = 0; r < m.rows(); ++r) {
-		for (int c = 0; c < m.columns(); ++c) {
+	for (unsigned int r = 0; r < m.rows(); ++r) {
+		for (unsigned int c = 0; c < m.columns(); ++c) {
 			k++;
 			m(r, c) = k;
 			assert(k, m(r, c));
@@ -81,8 +81,8 @@ void test(Matrix<int> m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in column major order
 	k = 0;
-	for (int c = 0; c < m.columns(); ++c) {
-		for (int r = 0; r < m.rows(); ++r) {
+	for (unsigned int c = 0; c < m.columns(); ++c) {
+		for (unsigned int r = 0; r < m.rows(); ++r) {
 			k++;
 			m(r, c) = k;
 			assert(k, m(r, c));
@@ -114,8 +114,8 @@ void test(Matrix<int> m) {
 		assert(m.rows(), d.columns());
 		assert(m.rows(), d.rows());
 
-		for (int r = 0; r < d.rows(); ++r) {
-			for (int c = 0; c < d.columns(); ++c) {
+		for (unsigned int r = 0; r < d.rows(); ++r) {
+			for (unsigned int c = 0; c < d.columns(); ++c) {
 				if (r == c) {
 					assert(m(r, 0), d(r, c));
 				} else {

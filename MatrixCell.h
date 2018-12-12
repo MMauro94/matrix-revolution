@@ -9,12 +9,12 @@ class MatrixCell {
 	private:
 
 		std::shared_ptr<MatrixData<T>> data;
-		int row, col;
+		unsigned int row, col;
 
 
 	public:
 
-		MatrixCell(const std::shared_ptr<MatrixData<T>> &data, int row, int col) : row(row), col(col), data(data) {
+		MatrixCell(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : row(row), col(col), data(data) {
 			if (row < 0 || row >= data->rows()) {
 				throw "Row out of bounds";
 			} else if (col < 0 || col >= data->columns()) {

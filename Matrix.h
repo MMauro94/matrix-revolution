@@ -27,7 +27,7 @@ class Matrix {
 		 * @param rows number of rows
 		 * @param columns number of columns
 		 */
-		explicit Matrix(int rows, int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
+		explicit Matrix(unsigned int rows, unsigned int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
 		}
 
 
@@ -44,40 +44,40 @@ class Matrix {
 		 */
 		Matrix(Matrix<T> &&other) noexcept = default;
 
-		const T operator()(int row, int col) const {
+		const T operator()(unsigned int row, unsigned int col) const {
 			return this->data->get(row, col);
 		}
 
-		MatrixCell<T> operator()(int row, int col) {
+		MatrixCell<T> operator()(unsigned int row, unsigned int col) {
 			return MatrixCell<T>(this->data, row, col);
 		}
 
 		/**
 		 * @return the number of columns
 		 */
-		int columns() const {
+		unsigned int columns() const {
 			return this->data->columns();
 		}
 
 		/**
 		 * @return the number of rows
 		 */
-		int rows() const {
+		unsigned int rows() const {
 			return this->data->rows();
 		}
 
 		/**
 		 * @return the total number of cells (rows*columns)
 		 */
-		int size() const {
+		unsigned int size() const {
 			return rows() * columns();
 		}
 
-		Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) {
+		Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
-		const Matrix<T> submatrix(int rowOffset, int colOffset, int rows, int columns) const {
+		const Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
@@ -114,6 +114,21 @@ class Matrix {
 			return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(this->data));
 		}
 
+		template<typename O>
+		Matrix<O> cast() {
+			return Matrix<O>(std::make_shared<Caster<T, O>>(this->data));
+		}
+
+		template<typename O>
+		const Matrix<O> cast() const {
+			return Matrix<O>(std::make_shared<Caster<T, O>>(this->data));
+		}
+
+		template<typename O>
+		const Matrix<O> readOnlyCast() const {
+			return Matrix<O>(std::make_shared<ReadOnlyCaster<T, O>>(this->data));
+		}
+
 		/**
 		 * Multiplies the two given matrices
 		 */
@@ -127,11 +142,12 @@ class Matrix {
 		/**
 		 * Adds the two given matrices
 		 */
-		const Matrix<T> operator+(Matrix<T> &another) const {
+		template<typename U>
+		const Matrix<decltype(T() * U())> operator+(Matrix<U> &another) const {
 			if (this->columns() != another.columns() || this->rows() != another.rows()) {
 				throw "Addetion should be performed on compatible matrices";
 			}
-			return Matrix<T>(std::make_shared<SumMatrix<T>>(this->data, another.data));
+			return Matrix<decltype(T() * U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
 		}
 
 		/**
@@ -190,8 +206,8 @@ class Matrix {
 		 * @param separator the separator between each column
 		 */
 		void print(const char *format, const char *separator = "  ") const {
-			for (int row = 0; row < this->rows(); ++row) {
-				for (int col = 0; col < this->columns(); ++col) {
+			for (unsigned int row = 0; row < this->rows(); ++row) {
+				for (unsigned int col = 0; col < this->columns(); ++col) {
 					if (col > 0) {
 						std::cout << separator;
 					}
