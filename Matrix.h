@@ -14,6 +14,11 @@
  */
 template<typename T>
 class Matrix {
+	private:
+		//This allows us to access protected members of another Matrix of a different size
+		template<typename U> friend
+		class Matrix;
+
 	protected:
 		std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
 
@@ -45,6 +50,11 @@ class Matrix {
 		Matrix(Matrix<T> &&other) noexcept = default;
 
 		const T operator()(unsigned int row, unsigned int col) const {
+			if (row < 0 || row >= this->rows()) {
+				throw "Row out of bounds";
+			} else if (col < 0 || col >= this->columns()) {
+				throw "Column out of bounds";
+			}
 			return this->data->get(row, col);
 		}
 
@@ -74,10 +84,16 @@ class Matrix {
 		}
 
 		Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
+			if (rowOffset + rows >= this->rows() || colOffset + columns >= this->columns()) {
+				throw "Illegal bounds";
+			}
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
 		const Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
+			if (rowOffset + rows >= this->rows() || colOffset + columns >= this->columns()) {
+				throw "Illegal bounds";
+			}
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
@@ -132,7 +148,7 @@ class Matrix {
 		/**
 		 * Multiplies the two given matrices
 		 */
-		const Matrix<T> operator*(Matrix<T> &another) const {
+		const Matrix<T> operator*(const Matrix<T> &another) const {
 			if (this->columns() != another.rows()) {
 				throw "Multiplication should be performed on compatible matrices";
 			}
@@ -140,14 +156,36 @@ class Matrix {
 		}
 
 		/**
+		 * Multiplies by the given constant
+		 */
+		Matrix<T> operator*(const T another) {
+			return Matrix<T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
+		}
+
+		const Matrix<T> operator*(const T another) const {
+			return Matrix<T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
+		}
+
+		/**
 		 * Adds the two given matrices
 		 */
 		template<typename U>
-		const Matrix<decltype(T() * U())> operator+(Matrix<U> &another) const {
+		const Matrix<decltype(T() + U())> operator+(const Matrix<U> &another) const {
 			if (this->columns() != another.columns() || this->rows() != another.rows()) {
 				throw "Addetion should be performed on compatible matrices";
 			}
-			return Matrix<decltype(T() * U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
+			return Matrix<decltype(T() + U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
+		}
+
+		/**
+		 * Adds by the given constant
+		 */
+		Matrix<T> operator+(const T another) {
+			return Matrix<T>(std::make_shared<ConstantAddition<T>>(this->data, another));
+		}
+
+		const Matrix<T> operator+(const T another) const {
+			return Matrix<T>(std::make_shared<ConstantAddition<T>>(this->data, another));
 		}
 
 		/**

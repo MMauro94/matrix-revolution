@@ -12,10 +12,10 @@ template<typename T>
 class BaseMatrixIterator {
 	protected:
 		std::shared_ptr<MatrixData<T>> data;
-		int row, col;
+		unsigned int row, col;
 
 	public:
-		BaseMatrixIterator(const std::shared_ptr<MatrixData<T>> &data, int row, int col) : data(data), row(row), col(col) {}
+		BaseMatrixIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : data(data), row(row), col(col) {}
 
 		T operator*() {
 			return data->get(row, col);
@@ -37,7 +37,8 @@ class BaseMatrixIterator {
 template<typename T>
 class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
 	public:
-		MatrixRowMajorIterator(const std::shared_ptr<MatrixData<T>> &data, int row, int col) : BaseMatrixIterator<T>(data, row, col) {}
+		MatrixRowMajorIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : BaseMatrixIterator<T>(data, row,
+																																	   col) {}
 
 		void operator++() {
 			if (this->col + 1 >= this->data->columns()) {
@@ -66,7 +67,8 @@ class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
 template<typename T>
 class MatrixColumnMajorIterator : public BaseMatrixIterator<T> {
 	public:
-		MatrixColumnMajorIterator(const std::shared_ptr<MatrixData<T>> &data, int row, int col) : BaseMatrixIterator<T>(data, row, col) {}
+		MatrixColumnMajorIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : BaseMatrixIterator<T>(data, row,
+																																		  col) {}
 
 		void operator++() {
 			if (this->row + 1 >= this->data->rows()) {

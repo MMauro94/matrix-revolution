@@ -44,20 +44,21 @@ class StaticSizeMatrix : public Matrix<T> {
 		 * @return a submatrix. The method is only enabled when the bounds are valid
 		 */
 		template<unsigned int ROW_OFFSET, unsigned int COL_OFFSET, unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		typename std::enable_if<ROW_OFFSET >= 0 && COL_OFFSET >= 0 && ROW_OFFSET + ROW_COUNT < ROWS &&
-								COL_OFFSET + COL_COUNT < COLUMNS, StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>>::type
+		typename std::enable_if<ROW_OFFSET + ROW_COUNT < ROWS && COL_OFFSET + COL_COUNT < COLUMNS, StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>>::type
 		submatrix() {
 			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
 					std::make_shared<SubmatrixMD<T>>(ROW_OFFSET, COL_OFFSET, ROW_COUNT, COL_COUNT, this->data));
 		}
 
 		template<unsigned int ROW_OFFSET, unsigned int COL_OFFSET, unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		const typename std::enable_if<ROW_OFFSET >= 0 && COL_OFFSET >= 0 && ROW_OFFSET + ROW_COUNT < ROWS &&
-									  COL_OFFSET + COL_COUNT < COLUMNS, StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>>::type
+		const typename std::enable_if<
+				ROW_OFFSET + ROW_COUNT < ROWS && COL_OFFSET + COL_COUNT < COLUMNS, StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>>::type
 		submatrix() const {
 			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
 					std::make_shared<SubmatrixMD<T>>(ROW_OFFSET, COL_OFFSET, ROW_COUNT, COL_COUNT, this->data));
 		}
+
+		using Matrix<T>::submatrix;
 
 		/**
 		 * @return the transposed matrix
@@ -100,6 +101,21 @@ class StaticSizeMatrix : public Matrix<T> {
 			return StaticSizeMatrix<ROWS, C, decltype(T() * U())>(std::make_shared<MultiplyMatrix<decltype(T() * U())>>(this->data, another.data));
 		}
 
+		/**
+		 * Multiplies by the given constant
+		 */
+		StaticSizeMatrix<ROWS, COLUMNS, T> operator*(const T another) {
+			return StaticSizeMatrix<ROWS, COLUMNS, T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
+		}
+
+		const StaticSizeMatrix<ROWS, COLUMNS, T> operator*(const T another) const {
+			return StaticSizeMatrix<ROWS, COLUMNS, T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
+		}
+
+
+		using Matrix<T>::operator*;//TODO: ambiguity with *(T)
+
+
 		template<typename O>
 		StaticSizeMatrix<ROWS, COLUMNS, O> cast() {
 			return StaticSizeMatrix<ROWS, COLUMNS, O>(std::make_shared<Caster<T, O>>(this->data));
@@ -120,9 +136,22 @@ class StaticSizeMatrix : public Matrix<T> {
 		 * Adds the two given matrices
 		 */
 		template<typename U>
-		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() * U())> operator+(const StaticSizeMatrix<ROWS, COLUMNS, U> &another) const {
-			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() * U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
+		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U())> operator+(const StaticSizeMatrix<ROWS, COLUMNS, U> &another) const {
+			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
 		}
+
+		/**
+		 * Adds by the given constant
+		 */
+		StaticSizeMatrix<ROWS, COLUMNS, T> operator+(const T another) {
+			return StaticSizeMatrix<ROWS, COLUMNS, T>(std::make_shared<ConstantAddition<T>>(this->data, another));
+		}
+
+		const StaticSizeMatrix<ROWS, COLUMNS, T> operator+(const T another) const {
+			return StaticSizeMatrix<ROWS, COLUMNS, T>(std::make_shared<ConstantAddition<T>>(this->data, another));
+		}
+
+		using Matrix<T>::operator+;//TODO: ambiguity with +(T)
 };
 
 #endif //MATRIX_STATICSIZEMATRIX_H

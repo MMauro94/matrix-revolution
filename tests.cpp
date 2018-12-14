@@ -4,8 +4,8 @@
 #include "Matrix.h"
 #include "StaticSizeMatrix.h"
 
-
-void initializeCells(Matrix<int> &m, int rowMultiplier, int colMultiplier) {
+template<typename T>
+void initializeCells(Matrix<T> &m, T rowMultiplier, T colMultiplier) {
 	for (unsigned int row = 0; row < m.rows(); ++row) {
 		for (unsigned int col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
@@ -13,22 +13,25 @@ void initializeCells(Matrix<int> &m, int rowMultiplier, int colMultiplier) {
 	}
 }
 
-void assert(int expected, int actual) {
+template<typename T>
+void assert(T expected, T actual) {
 	if (expected != actual) {
 		std::cout << "ERROR: expected " << expected << ", got " << actual << std::endl;
 		exit(1);
 	}
 }
 
-void assertAll(int expected, Matrix<int> m) {
+template<typename T>
+void assertAll(T expected, Matrix<T> m) {
 	for (unsigned int r = 0; r < m.rows(); ++r) {
 		for (unsigned int c = 0; c < m.columns(); ++c) {
-			assert(expected, m(r, c));
+			assert<T>(expected, m(r, c));
 		}
 	}
 }
 
-void assertEquals(Matrix<int> m1, Matrix<int> m2) {
+template<typename T>
+void assertEquals(Matrix<T> m1, Matrix<T> m2) {
 	assert(m1.columns(), m2.columns());
 	assert(m1.rows(), m2.rows());
 
@@ -54,13 +57,14 @@ void testIterator(IT begin, IT end, int size) {
 	assert(0, k);
 }
 
-void test(Matrix<int> m) {
+template<typename T>
+void test(Matrix<int> &m) {
 	//TEST ASSIGNMENTS
 	for (int k = 0; k < 10; ++k) {
 		for (unsigned int r = 0; r < m.rows(); ++r) {
 			for (unsigned int c = 0; c < m.columns(); ++c) {
 				m(r, c) = k;
-				assert(k, m(r, c));
+				assert<T>(k, m(r, c));
 			}
 		}
 	}
@@ -71,7 +75,7 @@ void test(Matrix<int> m) {
 		for (unsigned int c = 0; c < m.columns(); ++c) {
 			k++;
 			m(r, c) = k;
-			assert(k, m(r, c));
+			assert<T>(k, m(r, c));
 		}
 	}
 
@@ -85,7 +89,7 @@ void test(Matrix<int> m) {
 		for (unsigned int r = 0; r < m.rows(); ++r) {
 			k++;
 			m(r, c) = k;
-			assert(k, m(r, c));
+			assert<T>(k, m(r, c));
 		}
 	}
 
@@ -96,14 +100,14 @@ void test(Matrix<int> m) {
 	//TEST TRANSPOSE
 	if (m.rows() >= 4 && m.columns() >= 3) {
 		m.transpose()(2, 3) = 76;
-		assert(76, m(3, 2));
+		assert<T>(76, m(3, 2));
 	}
 	assertEquals(m, m.transpose().transpose());
 
 	//TESTI DIAGONAL
 	if (m.isSquared()) {
 		m.diagonal()(2, 0) = 54;
-		assert(54, m(2, 2));
+		assert<T>(54, m(2, 2));
 
 		assertEquals(m.diagonal(), m.diagonal().diagonalMatrix().diagonal());
 	}
@@ -119,7 +123,7 @@ void test(Matrix<int> m) {
 				if (r == c) {
 					assert(m(r, 0), d(r, c));
 				} else {
-					assert(0, d(r, c));
+					assert<T>(0, d(r, c));
 				}
 			}
 		}
@@ -132,7 +136,7 @@ void test(Matrix<int> m) {
 		assert(m(3, 3), sm(1, 0));
 
 		sm(0, 0) = 123;
-		assert(123, m(2, 3));
+		assert<T>(123, m(2, 3));
 	}
 
 	assertEquals(m, m.submatrix(0, 0, m.rows(), m.columns()));
@@ -141,44 +145,60 @@ void test(Matrix<int> m) {
 
 void testMultiplicationAndAddition() {
 	StaticSizeMatrix<4, 3, int> m1;
-	StaticSizeMatrix<3, 5, int> m2;
+	const StaticSizeMatrix<4, 3, int> m1Plus10 = m1 + 10;
+	Matrix<double> m2(4, 3);
+	Matrix<int> m3(3, 5);
+	StaticSizeMatrix<5, 6, int> m4;
 	initializeCells(m1, 12, 5);
-	initializeCells(m2, 7, 13);
-	const StaticSizeMatrix<4, 3, int> &sum1 = m1 + m1;
-	const StaticSizeMatrix<4, 5, int> &multiplication1 = m1 * m2;
+	initializeCells<double>(m2, 11, 7);
+	initializeCells(m3, 7, 13);
+	initializeCells(m4, 8, 2);
+	const Matrix<double> sum1a = m1 + m2;
+	const Matrix<double> sum1b = m2 + m1;
+	const StaticSizeMatrix<4, 3, int> sum1c = m1 + m1;
+	const Matrix<int> multiplication1a = m1 * m3;
+	const Matrix<double> multiplication1b = m2 * m3.readOnlyCast<double>();
+	const Matrix<int> multiplication1c = m3 * m4;
 
-	m1.print("%02d");
-	m2.print("%02d");
-	multiplication1.print("%04d");
-	assert(92, sum1.get<3, 2>());
-	assert(7327, multiplication1.get<3, 4>());
+	//m1.print("%02d");
+	//m2.print("%02d");
+	//multiplication1a.print("%04d");
+	//m3.print("%02d");
+	//m4.print("%02d");
+	//multiplication1c.print("%04d");
+	assert(10, m1Plus10(3, 2));
+	assert(92, sum1c.get<3, 2>());
+	assert<double>(93, sum1a(3, 2));
+	assert<double>(93, sum1b(3, 2));
+	assertEquals(sum1a, sum1b);
+	assert(7327, multiplication1a(3, 4));
+	assert<double>(7178, multiplication1b(3, 4));
+	assert(5040, multiplication1c(2, 2));
 
 
-	StaticSizeMatrix<42, 100, int> m3;
-	StaticSizeMatrix<100, 28, int> m4;
-	StaticSizeMatrix<28, 14, int> m5;
-	initializeCells(m3, 12, 5);
-	initializeCells(m4, 7, 13);
-	initializeCells(m5, 3, 5);
-	const StaticSizeMatrix<42, 14, int> &multiplication2 = m3 * m4 * m5;
+	StaticSizeMatrix<42, 7, int> m5;
+	StaticSizeMatrix<7, 28, int> m6;
+	StaticSizeMatrix<28, 14, int> m7;
+	initializeCells(m5, 12, 5);
+	initializeCells(m6, 7, 13);
+	initializeCells(m7, 3, 5);
+	const StaticSizeMatrix<42, 14, int> multiplication2 = m5 * m6 * m7;
+	assert(35015890, multiplication2.get<0, 1>());
+	assert(110059096, multiplication2.get<1, 10>());
+	assert(145932388, multiplication2.get<3, 4>());
+	//multiplication2.print("%04d");
 }
 
-int main() {
-	/*
-	 * MAIN THAT PERFORMS SOME TESTS
-	 * IN CASE OF FAILURE, THE PROGRAM EXITS
-	 */
 
-	std::cout << "START TEST" << std::endl;
-
+void testBasicStuff() {
 	Matrix<int> sq(10, 10);
 	StaticSizeMatrix<15, 20, int> static1;
 	StaticSizeMatrix<20, 3, int> static2;
 	Matrix<int> rect(5, 10);
 	Matrix<int> vector(10, 1);
 
-	const StaticSizeMatrix<20, 15, int> &transposed = static1.transpose();
-	const StaticSizeMatrix<4, 5, int> &submatrix = static1.submatrix<6, 7, 4, 5>();
+	StaticSizeMatrix<20, 15, int> transposed = static1.transpose();
+	StaticSizeMatrix<4, 5, int> submatrix = static1.submatrix<6, 7, 4, 5>();
 
 	int read = static1.get<7, 0>();
 	static1.get<1, 0>() = read;
@@ -190,22 +210,26 @@ int main() {
 	assertAll(0, rect);
 	assertAll(0, vector);
 
-	test(sq);
-	test(static1);
-	test(transposed);
-	test(submatrix);
-	test(rect);
-	test(vector);
+	test<int>(sq);
+	test<int>(static1);
+	test<int>(transposed);
+	test<int>(submatrix);
+	test<int>(rect);
+	test<int>(vector);
+}
 
-	assertAll(0, sq);
-	assertAll(0, static1);
-	assertAll(0, transposed);
-	assertAll(0, submatrix);
-	assertAll(0, rect);
-	assertAll(0, vector);
+int main() {
+	/*
+	 * MAIN THAT PERFORMS SOME TESTS
+	 * IN CASE OF FAILURE, THE PROGRAM EXITS
+	 */
+
+	std::cout << "START TEST" << std::endl;
+
+	std::cout << "Testing basic stuff" << std::endl;
+	testBasicStuff();
 
 	std::cout << "Testing multiplication" << std::endl;
-
 	testMultiplicationAndAddition();
 
 	std::cout << "ALL TESTS PASSED" << std::endl;

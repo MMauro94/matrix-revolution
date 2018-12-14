@@ -21,7 +21,7 @@ The class to use is called `Matrix`. To instantiate a new matrix you can use the
 Matrix<int> m(10, 20); //Creates a 10x20 matrix of integers
 ```
 
-Accessing and setting data:
+To read and write data, you can use the `()` operator:
 ```c++
 m(1,3) = 10;
 std::cout << m(1,3); //Prints 10
@@ -40,6 +40,25 @@ Supports `const` version:
 const Matrix<int> m3 = m;
 std::cout << m3(1,3); //Prints 10
 m3(1,3) = 30; //Compile error
+```
+
+###Static matrix
+If you know the size of the matrix at static time, you could use the class `StaticSizeMatrix`, which extends `Matrix`.
+```c++
+StaticSizeMatrix<10, 20, int> m; //Creates a 10x20 matrix of integers
+```
+You can use all the methods of `Matrix` on a `StaticSizeMatrix`, however all the methods add additional static information about the matrix dimensions.
+
+For example
+```c++
+StaticSizeMatrix<10, 20, int> m; //Creates a 10x20 matrix of integers
+//As in Matrix<int>
+m(1,3) = 10;
+std::cout << m(1,3); //Prints 10
+//Unique for StaticSizeMatrix
+m.get<1, 3>() = 10;
+std::cout << m.get<1, 3>(); //Prints 10
+m.get<40, 60>() = 10; //Compiler error! Index out of bounds
 ```
 
 ### Shared data

@@ -102,7 +102,6 @@ template<typename T>
 class SubmatrixMD : public MatrixData<T> {
 
 	private:
-
 		std::shared_ptr<MatrixData<T>> wrapped;
 		unsigned int rowOffset, colOffset;
 
@@ -208,7 +207,6 @@ class DiagonalMatrixMD : public MatrixData<T> {
 template<typename I, typename O>
 class ReadOnlyCaster : public MatrixData<O> {
 	protected:
-
 		std::shared_ptr<MatrixData<I>> wrapped;
 	public:
 
@@ -234,6 +232,50 @@ class Caster : public ReadOnlyCaster<I, O> {
 };
 
 /**
+ * Multiply the given <code>MatrixData</code> by a constant
+ */
+template<typename T>
+class ConstantMultiplication : public MatrixData<T> {
+	private:
+		std::shared_ptr<MatrixData<T>> wrapped;
+		T value;
+	public:
+		explicit ConstantMultiplication(const std::shared_ptr<MatrixData<T>> &wrapped, const T value) : MatrixData<T>(wrapped->rows(),
+																													  wrapped->columns()),
+																										wrapped(wrapped), value(value) {}
+
+		T get(unsigned int row, unsigned int col) const override {
+			return this->wrapped.get(row, col) * this->value;
+		}
+
+		void set(unsigned int row, unsigned int col, T t) override {
+			this->wrapped.set(row, col, t / value);
+		}
+};
+
+/**
+ * Add the given <code>MatrixData</code> by a constant
+ */
+template<typename T>
+class ConstantAddition : public MatrixData<T> {
+	private:
+		std::shared_ptr<MatrixData<T>> wrapped;
+		T value;
+	public:
+		explicit ConstantAddition(const std::shared_ptr<MatrixData<T>> &wrapped, const T value) : MatrixData<T>(wrapped->rows(),
+																												wrapped->columns()),
+																								  wrapped(wrapped), value(value) {}
+
+		T get(unsigned int row, unsigned int col) const override {
+			return this->wrapped.get(row, col) + this->value;
+		}
+
+		void set(unsigned int row, unsigned int col, T t) override {
+			this->wrapped.set(row, col, t - value);
+		}
+};
+
+/**
  * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
  * @tparam T type of the data
  */
@@ -253,7 +295,11 @@ class MultiplyMatrix : public MatrixData<T> {
 
 		T get(unsigned int row, unsigned int col) const override {
 			this->optimize();
-			return optimized->get(row, col);
+			if (this->optimized == NULL) {
+				throw "Illegal state";
+			}
+			//std::cout << "Accessing " << row << "," << col << " (" << this->optimized->rows() << "x" << this->optimized->columns() << ")" << std::endl;
+			return this->optimized->get(row, col);
 		}
 
 	private:
@@ -263,7 +309,7 @@ class MultiplyMatrix : public MatrixData<T> {
 				std::vector<std::shared_ptr<MatrixData<T>>> multiplicationChain;
 				this->addToMultiplicationChain(multiplicationChain);
 
-				//Step 2: execute the multiplications in the most efficient order, until a single matrix data is left
+				//Step 2: execute the multiplications in an efficient order, until a single matrix data is left
 				while (multiplicationChain.size() > 1) {
 					//Step 2a: find the multiplication that reduces the multiplication the most
 					auto b = multiplicationChain.begin();
@@ -275,15 +321,15 @@ class MultiplyMatrix : public MatrixData<T> {
 						}
 					}
 					//Step 2b: performing the multiplication
-					MatrixData<T> &bestMatrix = **best;
-					MatrixData<T> &followingMatrix = **(best + 1);
-					std::cout << "Performing (" << bestMatrix.rows() << "x" << bestMatrix.columns() << ") x (" << followingMatrix.rows() << "x"
-							  << followingMatrix.columns() << ")" << std::endl;
+					MatrixData<T> &leftMatrix = **best;
+					MatrixData<T> &rightMatrix = **(best + 1);
+					std::cout << "Performing (" << leftMatrix.rows() << "x" << leftMatrix.columns() << ") x (" << rightMatrix.rows() << "x"
+							  << rightMatrix.columns() << ")" << std::endl;
 
-					const std::shared_ptr<MatrixData<T>> &multiplied = computeMultiplication(bestMatrix, followingMatrix);
+					const std::shared_ptr<MatrixData<T>> &multiplied = computeMultiplication(leftMatrix, rightMatrix);
 
 					//Step 2c: Dispatching the optimization to children, so useful calculations are not lost
-					this->dispatchOptimized(bestMatrix, followingMatrix, multiplied);
+					this->dispatchOptimized(leftMatrix, rightMatrix, multiplied);
 
 					//Step 2d: replacing the two matrices in the chain with the computed product
 					(*best) = multiplied;
@@ -347,7 +393,7 @@ class MultiplyMatrix : public MatrixData<T> {
  * @tparam T type of the data
  */
 template<typename T, typename U>
-class SumMatrix : public MatrixData<decltype(T() * U())> {
+class SumMatrix : public MatrixData<decltype(T() + U())> {
 
 	private:
 		std::shared_ptr<MatrixData<T>> first;
@@ -356,10 +402,10 @@ class SumMatrix : public MatrixData<decltype(T() * U())> {
 	public:
 
 		explicit SumMatrix(const std::shared_ptr<MatrixData<T>> &first, const std::shared_ptr<MatrixData<U>> &second) :
-				MatrixData<decltype(T() * U())>(first->rows(), second->columns()), first(first), second(second) {
+				MatrixData<decltype(T() + U())>(first->rows(), second->columns()), first(first), second(second) {
 		}
 
-		decltype(T() * U()) get(unsigned int row, unsigned int col) const override {
+		decltype(T() + U()) get(unsigned int row, unsigned int col) const override {
 			return this->first->get(row, col) + this->second->get(row, col);
 		}
 
