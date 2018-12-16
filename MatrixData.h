@@ -245,11 +245,11 @@ class ConstantMultiplication : public MatrixData<T> {
 																										wrapped(wrapped), value(value) {}
 
 		T get(unsigned int row, unsigned int col) const override {
-			return this->wrapped.get(row, col) * this->value;
+			return this->wrapped->get(row, col) * this->value;
 		}
 
 		void set(unsigned int row, unsigned int col, T t) override {
-			this->wrapped.set(row, col, t / value);
+			this->wrapped->set(row, col, t / value);
 		}
 };
 
@@ -267,11 +267,11 @@ class ConstantAddition : public MatrixData<T> {
 																								  wrapped(wrapped), value(value) {}
 
 		T get(unsigned int row, unsigned int col) const override {
-			return this->wrapped.get(row, col) + this->value;
+			return this->wrapped->get(row, col) + this->value;
 		}
 
 		void set(unsigned int row, unsigned int col, T t) override {
-			this->wrapped.set(row, col, t - value);
+			this->wrapped->set(row, col, t - value);
 		}
 };
 

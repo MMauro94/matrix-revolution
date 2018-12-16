@@ -8,6 +8,10 @@
 #include "MatrixIterator.h"
 #include "MatrixCell.h"
 
+
+template<unsigned int ROWS, unsigned int COLUMNS, typename T>
+class StaticSizeMatrix;
+
 /**
  * The only class exposed to the user of the library. It provides every method needed to use the matrix.
  * @tparam T the type of the data contained in each matrix cell
@@ -15,9 +19,13 @@
 template<typename T>
 class Matrix {
 	private:
-		//This allows us to access protected members of another Matrix of a different size
+		//This allows us to access protected members of another Matrix of a different type
 		template<typename U> friend
 		class Matrix;
+		//This allows us to access protected members of another StaticSizeMatrix of a different size
+		template<unsigned int R, unsigned int C, typename U> friend
+		class StaticSizeMatrix;
+
 
 	protected:
 		std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
@@ -84,17 +92,35 @@ class Matrix {
 		}
 
 		Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
-			if (rowOffset + rows >= this->rows() || colOffset + columns >= this->columns()) {
+			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
 		const Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
-			if (rowOffset + rows >= this->rows() || colOffset + columns >= this->columns()) {
+			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
 			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
+		}
+
+		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
+		StaticSizeMatrix<ROW_COUNT, COL_COUNT, T> submatrix(unsigned int rowOffset, unsigned int colOffset) {
+			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
+				throw "Illegal bounds";
+			}
+			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
+					std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
+		}
+
+		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
+		const StaticSizeMatrix<ROW_COUNT, COL_COUNT, T> submatrix(unsigned int rowOffset, unsigned int colOffset) const {
+			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
+				throw "Illegal bounds";
+			}
+			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
+					std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
 		}
 
 		Matrix<T> transpose() {

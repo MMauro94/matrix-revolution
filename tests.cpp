@@ -104,7 +104,7 @@ void test(Matrix<int> &m) {
 	}
 	assertEquals(m, m.transpose().transpose());
 
-	//TESTI DIAGONAL
+	//TEST DIAGONAL
 	if (m.isSquared()) {
 		m.diagonal()(2, 0) = 54;
 		assert<T>(54, m(2, 2));
@@ -146,6 +146,7 @@ void test(Matrix<int> &m) {
 void testMultiplicationAndAddition() {
 	StaticSizeMatrix<4, 3, int> m1;
 	const StaticSizeMatrix<4, 3, int> m1Plus10 = m1 + 10;
+	const StaticSizeMatrix<4, 3, int> m1Times5 = m1 * 5;
 	Matrix<double> m2(4, 3);
 	Matrix<int> m3(3, 5);
 	StaticSizeMatrix<5, 6, int> m4;
@@ -166,7 +167,8 @@ void testMultiplicationAndAddition() {
 	//m3.print("%02d");
 	//m4.print("%02d");
 	//multiplication1c.print("%04d");
-	assert(10, m1Plus10(3, 2));
+	assert(m1.get<3, 2>() + 10, m1Plus10.get<3,2>());
+	assert(m1.get<3, 2>() * 5, m1Times5.get<3,2>());
 	assert(92, sum1c.get<3, 2>());
 	assert<double>(93, sum1a(3, 2));
 	assert<double>(93, sum1b(3, 2));
@@ -199,6 +201,7 @@ void testBasicStuff() {
 
 	StaticSizeMatrix<20, 15, int> transposed = static1.transpose();
 	StaticSizeMatrix<4, 5, int> submatrix = static1.submatrix<6, 7, 4, 5>();
+	StaticSizeMatrix<4, 5, int> submatrix2 = rect.submatrix<4, 5>(1, 4);
 
 	int read = static1.get<7, 0>();
 	static1.get<1, 0>() = read;
@@ -207,13 +210,15 @@ void testBasicStuff() {
 	assertAll(0, static1);
 	assertAll(0, transposed);
 	assertAll(0, submatrix);
+	assertAll(0, submatrix2);
 	assertAll(0, rect);
 	assertAll(0, vector);
 
+	test<int>(submatrix);
+	test<int>(submatrix2);
 	test<int>(sq);
 	test<int>(static1);
 	test<int>(transposed);
-	test<int>(submatrix);
 	test<int>(rect);
 	test<int>(vector);
 }
