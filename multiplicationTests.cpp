@@ -6,8 +6,8 @@
 
 template<typename T, class MD>
 void initializeCells(Matrix<T, MD> &m, T rowMultiplier, T colMultiplier) {
-	for (unsigned int row = 0; row < m.rows(); ++row) {
-		for (unsigned int col = 0; col < m.columns(); ++col) {
+	for (unsigned row = 0; row < m.rows(); ++row) {
+		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
 		}
 	}
@@ -27,8 +27,8 @@ void assertEqual(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 		std::cout << "ERROR: expected matrix of the same size" << std::endl;
 		exit(1);
 	}
-	for (unsigned int r = 0; r < m1.rows(); ++r) {
-		for (unsigned int c = 0; c < m2.columns(); ++c) {
+	for (unsigned r = 0; r < m1.rows(); ++r) {
+		for (unsigned c = 0; c < m2.columns(); ++c) {
 			assert(m1(r, c), m2(r, c));
 		}
 	}

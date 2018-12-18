@@ -6,8 +6,8 @@
 
 template<class MD>
 void initializeCells(Matrix<int, MD> &m, int rowMultiplier, int colMultiplier) {
-	for (unsigned int row = 0; row < m.rows(); ++row) {
-		for (unsigned int col = 0; col < m.columns(); ++col) {
+	for (unsigned row = 0; row < m.rows(); ++row) {
+		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
 		}
 	}

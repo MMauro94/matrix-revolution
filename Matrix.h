@@ -9,7 +9,7 @@
 #include "MatrixCell.h"
 
 
-template<unsigned int ROWS, unsigned int COLUMNS, typename T, class MD>
+template<unsigned ROWS, unsigned COLUMNS, typename T, class MD>
 class StaticSizeMatrix;
 
 /**
@@ -24,15 +24,15 @@ class Matrix {
 		class Matrix;
 
 		//This allows us to access protected members of another StaticSizeMatrix of a different size
-		template<unsigned int R, unsigned int C, typename U, class MDD> friend
+		template<unsigned R, unsigned C, typename U, class MDD> friend
 		class StaticSizeMatrix;
 
 
 	protected:
-		std::shared_ptr<MD> data; //Pointer to the class holding the data
+		MD data; //Pointer to the class holding the data
 
 		/** Private constructor that accepts a pointer to the data */
-		explicit Matrix(const std::shared_ptr<MD> &data) : data(data) {}
+		explicit Matrix(MD &data) : data(data) {}
 
 	public:
 
@@ -41,15 +41,10 @@ class Matrix {
 		 * @param rows number of rows
 		 * @param columns number of columns
 		 */
-		explicit Matrix(unsigned int rows, unsigned int columns) : data(std::make_shared<VectorMatrixData<T>>(rows, columns)) {
+		explicit Matrix(unsigned rows, unsigned columns) : data(VectorMatrixData<T>(rows, columns)) {
 		}
 
-
-		/**
-		 * Copy constructor that triggers a deep copy of the matrix
-		 * @param other the other matrix
-		 */
-		Matrix(const Matrix<T, MD> &other) : data(std::make_shared<VectorMatrixData<T>>(other.data->copy())) {
+		Matrix(const Matrix<T, MD> &other) : data(other.data.copy()) {
 		}
 
 		/**
@@ -58,92 +53,92 @@ class Matrix {
 		 */
 		Matrix(Matrix<T, MD> &&other) noexcept = default;
 
-		const T operator()(unsigned int row, unsigned int col) const {
+		const T operator()(unsigned row, unsigned col) const {
 			if (row < 0 || row >= this->rows()) {
 				throw "Row out of bounds";
 			} else if (col < 0 || col >= this->columns()) {
 				throw "Column out of bounds";
 			}
-			return this->data->get(row, col);
+			return this->data.get(row, col);
 		}
 
-		MatrixCell<T, MD> operator()(unsigned int row, unsigned int col) {
+		MatrixCell<T, MD> operator()(unsigned row, unsigned col) {
 			return MatrixCell<T, MD>(this->data, row, col);
 		}
 
 		/**
 		 * @return the number of columns
 		 */
-		unsigned int columns() const {
-			return this->data->columns();
+		unsigned columns() const {
+			return this->data.columns();
 		}
 
 		/**
 		 * @return the number of rows
 		 */
-		unsigned int rows() const {
-			return this->data->rows();
+		unsigned rows() const {
+			return this->data.rows();
 		}
 
 		/**
 		 * @return the total number of cells (rows*columns)
 		 */
-		unsigned int size() const {
+		unsigned size() const {
 			return rows() * columns();
 		}
 
-		Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
+		Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) {
 			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return Matrix<T, SubmatrixMD<T, MD>>(std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, rows, columns, this->data));
+			return Matrix<T, SubmatrixMD<T, MD>>(SubmatrixMD<T, MD>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
-		const Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
+		const Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const {
 			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return Matrix<T, SubmatrixMD<T, MD>>(std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, rows, columns, this->data));
+			return Matrix<T, SubmatrixMD<T, MD>>(SubmatrixMD<T, MD>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
-		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset) {
+		template<unsigned ROW_COUNT, unsigned COL_COUNT>
+		StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned rowOffset, unsigned colOffset) {
 			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
 				throw "Illegal bounds";
 			}
 			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>>(
-					std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
+					SubmatrixMD<T, MD>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
 		}
 
-		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		const StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset) const {
+		template<unsigned ROW_COUNT, unsigned COL_COUNT>
+		const StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned rowOffset, unsigned colOffset) const {
 			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
 				throw "Illegal bounds";
 			}
 			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>>(
-					std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
+					SubmatrixMD<T, MD>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
 		}
 
 		Matrix<T, TransposedMD<T, MD>> transpose() {
-			return Matrix<T, TransposedMD<T, MD>>(std::make_shared<TransposedMD<T, MD>>(this->data));
+			return Matrix<T, TransposedMD<T, MD>>(TransposedMD<T, MD>(this->data));
 		}
 
 		const Matrix<T, TransposedMD<T, MD>> transpose() const {
-			return Matrix<T, TransposedMD<T, MD>>(std::make_shared<TransposedMD<T, MD>>(this->data));
+			return Matrix<T, TransposedMD<T, MD>>(TransposedMD<T, MD>(this->data));
 		}
 
 		Matrix<T, DiagonalMD<T, MD>> diagonal() {
 			if (!isSquared()) {
 				throw "diagonal() can only be called on squared matrices";
 			}
-			return Matrix<T, DiagonalMD<T, MD>>(std::make_shared<DiagonalMD<T, MD>>(this->data));
+			return Matrix<T, DiagonalMD<T, MD>>(DiagonalMD<T, MD>(this->data));
 		}
 
 		const Matrix<T, DiagonalMD<T, MD>> diagonal() const {
 			if (!isSquared()) {
 				throw "diagonal() can only be called on squared matrices";
 			}
-			return Matrix<T, DiagonalMD<T, MD>>(std::make_shared<DiagonalMD<T, MD>>(this->data));
+			return Matrix<T, DiagonalMD<T, MD>>(DiagonalMD<T, MD>(this->data));
 		}
 
 		/**
@@ -154,7 +149,7 @@ class Matrix {
 			if (!isVector()) {
 				throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
 			}
-			return Matrix<T, DiagonalMatrixMD<T, MD>>(std::make_shared<DiagonalMatrixMD<T, MD>>(this->data));
+			return Matrix<T, DiagonalMatrixMD<T, MD>>(DiagonalMatrixMD<T, MD>(this->data));
 		}
 
 		/**
@@ -165,7 +160,7 @@ class Matrix {
 			if (this->columns() != another.rows()) {
 				throw "Multiplication should be performed on compatible matrices";
 			}
-			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(std::make_shared<MultiplyMatrix<T, MD, MD2>>(this->data, another.data));
+			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(MultiplyMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
 		/**
@@ -177,7 +172,7 @@ class Matrix {
 				throw "Addetion should be performed on compatible matrices";
 			}
 			return Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
-					std::make_shared<SumMatrix<decltype(T() + U()), MD, MD2>>(this->data, another.data));
+					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
 		}
 
 		/**
@@ -231,7 +226,7 @@ class Matrix {
 		}
 
 		void printForMultiplicationDebug() const {
-			this->data->printForMultiplicationDebug();
+			this->data.printForMultiplicationDebug();
 			std::cout << std::endl;
 		}
 
@@ -241,8 +236,8 @@ class Matrix {
 		 * @param separator the separator between each column
 		 */
 		void print(const char *format, const char *separator = "  ") const {
-			for (unsigned int row = 0; row < this->rows(); ++row) {
-				for (unsigned int col = 0; col < this->columns(); ++col) {
+			for (unsigned row = 0; row < this->rows(); ++row) {
+				for (unsigned col = 0; col < this->columns(); ++col) {
 					if (col > 0) {
 						std::cout << separator;
 					}

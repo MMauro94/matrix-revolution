@@ -6,8 +6,8 @@
 
 template<typename T, class MD>
 void initializeCells(Matrix<T, MD> &m, T rowMultiplier, T colMultiplier) {
-	for (unsigned int row = 0; row < m.rows(); ++row) {
-		for (unsigned int col = 0; col < m.columns(); ++col) {
+	for (unsigned row = 0; row < m.rows(); ++row) {
+		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
 		}
 	}
@@ -23,8 +23,8 @@ void assert(T expected, T actual) {
 
 template<typename T, class MD>
 void assertAll(T expected, const Matrix<T, MD> &m) {
-	for (unsigned int r = 0; r < m.rows(); ++r) {
-		for (unsigned int c = 0; c < m.columns(); ++c) {
+	for (unsigned r = 0; r < m.rows(); ++r) {
+		for (unsigned c = 0; c < m.columns(); ++c) {
 			assert<T>(expected, m(r, c));
 		}
 	}
@@ -35,8 +35,8 @@ void assertEquals(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 	assert(m1.columns(), m2.columns());
 	assert(m1.rows(), m2.rows());
 
-	for (unsigned int r = 0; r < m1.rows(); ++r) {
-		for (unsigned int c = 0; c < m1.columns(); ++c) {
+	for (unsigned r = 0; r < m1.rows(); ++r) {
+		for (unsigned c = 0; c < m1.columns(); ++c) {
 			assert(m1(r, c), m2(r, c));
 		}
 	}
@@ -58,11 +58,34 @@ void testIterator(IT begin, IT end, int size) {
 }
 
 template<typename T, class MD>
-void test(Matrix<int, MD> &m) {
+void dirtify(Matrix<T, MD> m) {
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 18;
+		}
+	}
+}
+
+template<typename T, class MD>
+void dirtify2(Matrix<T, MD> &m) {
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 18;
+		}
+	}
+}
+
+template<typename T, class MD>
+void test(Matrix<T, MD> &m) {
+	assertAll(0, m);
+	dirtify<T, MD>(m);//Testing deep copy
+	assertAll(0, m);
+	dirtify2<T, MD>(m);//Testing move
+	assertAll(18, m);
 	//TEST ASSIGNMENTS
 	for (int k = 0; k < 10; ++k) {
-		for (unsigned int r = 0; r < m.rows(); ++r) {
-			for (unsigned int c = 0; c < m.columns(); ++c) {
+		for (unsigned r = 0; r < m.rows(); ++r) {
+			for (unsigned c = 0; c < m.columns(); ++c) {
 				m(r, c) = k;
 				assert<T>(k, m(r, c));
 			}
@@ -71,8 +94,8 @@ void test(Matrix<int, MD> &m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in row major order
 	int k = 0;
-	for (unsigned int r = 0; r < m.rows(); ++r) {
-		for (unsigned int c = 0; c < m.columns(); ++c) {
+	for (unsigned r = 0; r < m.rows(); ++r) {
+		for (unsigned c = 0; c < m.columns(); ++c) {
 			k++;
 			m(r, c) = k;
 			assert<T>(k, m(r, c));
@@ -85,8 +108,8 @@ void test(Matrix<int, MD> &m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in column major order
 	k = 0;
-	for (unsigned int c = 0; c < m.columns(); ++c) {
-		for (unsigned int r = 0; r < m.rows(); ++r) {
+	for (unsigned c = 0; c < m.columns(); ++c) {
+		for (unsigned r = 0; r < m.rows(); ++r) {
 			k++;
 			m(r, c) = k;
 			assert<T>(k, m(r, c));
@@ -118,8 +141,8 @@ void test(Matrix<int, MD> &m) {
 		assert(m.rows(), d.columns());
 		assert(m.rows(), d.rows());
 
-		for (unsigned int r = 0; r < d.rows(); ++r) {
-			for (unsigned int c = 0; c < d.columns(); ++c) {
+		for (unsigned r = 0; r < d.rows(); ++r) {
+			for (unsigned c = 0; c < d.columns(); ++c) {
 				if (r == c) {
 					assert<T>(m(r, 0), d(r, c));
 				} else {
@@ -140,6 +163,13 @@ void test(Matrix<int, MD> &m) {
 	}
 
 	assertEquals(m, m.submatrix(0, 0, m.rows(), m.columns()));
+
+	//Cleaning the matrix
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 0;
+		}
+	}
 }
 
 
@@ -155,8 +185,8 @@ void testMultiplicationAndAddition() {
 	auto sum1a = m1 + m2;
 	auto sum1b = m2 + m1;
 	auto sum1c = m1 + m1;
-	auto multiplication1a = m1 * m3;
 	auto multiplication1c = m3 * m4;
+	auto multiplication1a = m1 * m3;
 
 	//m1.print("%02d");
 	//m2.print("%02d");
@@ -199,14 +229,6 @@ void testBasicStuff() {
 
 	int read = static1.get<7, 0>();
 	static1.get<1, 0>() = read;
-
-	assertAll(0, sq);
-	assertAll(0, static1);
-	assertAll(0, transposed);
-	assertAll(0, submatrix);
-	assertAll(0, submatrix2);
-	assertAll(0, rect);
-	assertAll(0, vector);
 
 	test<int>(submatrix);
 	test<int>(submatrix2);
