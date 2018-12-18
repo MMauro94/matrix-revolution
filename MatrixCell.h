@@ -4,17 +4,17 @@
 #include <memory>
 #include "MatrixData.h"
 
-template<typename T>
+template<typename T, class MD>
 class MatrixCell {
 	private:
 
-		std::shared_ptr<MatrixData<T>> data;
+		std::shared_ptr<MD> data;
 		unsigned int row, col;
 
 
 	public:
 
-		MatrixCell(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : row(row), col(col), data(data) {
+		MatrixCell(const std::shared_ptr<MD> &data, unsigned int row, unsigned int col) : row(row), col(col), data(data) {
 			if (row < 0 || row >= data->rows()) {
 				throw "Row out of bounds";
 			} else if (col < 0 || col >= data->columns()) {
@@ -23,13 +23,13 @@ class MatrixCell {
 		}
 
 		/** Deleted because it would have allowed to make a <code>const MatrixCell&lt;T&gt;</code> non constant */
-		MatrixCell(const MatrixCell<T> &) = delete; //Copy constructor
+		MatrixCell(const MatrixCell<T, MD> &) = delete; //Copy constructor
 
-		MatrixCell(MatrixCell<T> &&) noexcept = default; //Move constructor
+		MatrixCell(MatrixCell<T, MD> &&) noexcept = default; //Move constructor
 
 
 
-		MatrixCell<T> &operator=(T const &obj) {
+		MatrixCell<T, MD> &operator=(T const &obj) {
 			this->data->set(this->row, this->col, obj);
 			return *this;
 		}

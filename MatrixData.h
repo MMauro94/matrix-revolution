@@ -3,9 +3,13 @@
 
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 template<typename T>
 class VectorMatrixData;
+
+template<typename T, class MD1, class MD2>
+class MultiplyMatrix;
 
 /**
  * Abstract class that exposes the data of the matrix
@@ -15,12 +19,27 @@ template<typename T>
 class MatrixData {
 
 	private:
+
+		template<typename T, class MD1, class MD2> friend
+		class MultiplyMatrix;
+
 		unsigned int _rows, _columns;
+
+	protected:
+		const MatrixData<T> *findOptimalMatrixForMultiplication(const MatrixData<T> *rightmost) const {
+			return this;
+		}
+
+		const MatrixData<T> *findRightmostForMultiplication() const {
+			return this;
+		}
+
+		const MatrixData<T> *findLeftmostForMultiplication() const {
+			return this;
+		}
 
 	public:
 		MatrixData(unsigned int rows, unsigned int columns) : _rows(rows), _columns(columns) {}
-
-		virtual ~MatrixData() = default;
 
 		/**
 		 * @return number of columns
@@ -37,26 +56,13 @@ class MatrixData {
 		}
 
 		/**
-		 * @param row the row index
-		 * @param col the column index
-		 * @return the value at the given position
-		 */
-		virtual T get(unsigned int row, unsigned int col) const = 0;
-
-		/**
-		 * Sets the new value at the given position. Can throw exception if the operation is not supported.
-		 * @param row the row index
-		 * @param col the column index
-		 * @param t the new value
-		 */
-		virtual void set(unsigned int row, unsigned int col, T t) {
-			throw "Unsupported";
-		}
-
-		/**
 		 * @return a copy of this data
 		 */
 		VectorMatrixData<T> copy();
+
+		void printForMultiplicationDebug() const {
+			std::cout << this->_rows << "x" << this->_columns;
+		}
 };
 
 /**
@@ -73,11 +79,11 @@ class VectorMatrixData : public MatrixData<T> {
 		VectorMatrixData(unsigned int rows, unsigned int columns) : MatrixData<T>(rows, columns), vector(rows * columns) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
+		T get(unsigned int row, unsigned int col) const {
 			return this->vector[row * this->columns() + col];
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
+		void set(unsigned int row, unsigned int col, T t) {
 			this->vector[row * this->columns() + col] = t;
 		}
 
@@ -98,29 +104,29 @@ VectorMatrixData<T> MatrixData<T>::copy() {
  * Implementation of <code>MatrixData</code> that exposes a submatrix of another <code>MatrixData</code>
  * @tparam T type of the data
  */
-template<typename T>
+template<typename T, class MD>
 class SubmatrixMD : public MatrixData<T> {
 
 	private:
-		std::shared_ptr<MatrixData<T>> wrapped;
+		std::shared_ptr<MD> wrapped;
 		unsigned int rowOffset, colOffset;
 
 
 	public:
 
 		SubmatrixMD(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns,
-					const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData<T>(rows,
-																				   columns),
-																	 rowOffset(rowOffset),
-																	 colOffset(colOffset),
-																	 wrapped(wrapped) {
+					const std::shared_ptr<MD> &wrapped) : MatrixData<T>(rows,
+																		columns),
+														  rowOffset(rowOffset),
+														  colOffset(colOffset),
+														  wrapped(wrapped) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
+		T get(unsigned int row, unsigned int col) const {
 			return this->wrapped->get(row + this->rowOffset, col + this->colOffset);
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
+		void set(unsigned int row, unsigned int col, T t) {
 			this->wrapped->set(row + this->rowOffset, col + this->colOffset, t);
 		}
 
@@ -130,23 +136,23 @@ class SubmatrixMD : public MatrixData<T> {
  * Implementation of <code>MatrixData</code> that exposes the transposed matrix of another <code>MatrixData</code>
  * @tparam T type of the data
  */
-template<typename T>
+template<typename T, class MD>
 class TransposedMD : public MatrixData<T> {
 
 	private:
 
-		std::shared_ptr<MatrixData<T>> wrapped;
+		std::shared_ptr<MD> wrapped;
 
 	public:
 
-		explicit TransposedMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData<T>(wrapped->columns(), wrapped->rows()), wrapped(wrapped) {
+		explicit TransposedMD(const std::shared_ptr<MD> &wrapped) : MatrixData<T>(wrapped->columns(), wrapped->rows()), wrapped(wrapped) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
+		T get(unsigned int row, unsigned int col) const {
 			return this->wrapped->get(col, row);
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
+		void set(unsigned int row, unsigned int col, T t) {
 			this->wrapped->set(col, row, t);
 		}
 
@@ -156,23 +162,23 @@ class TransposedMD : public MatrixData<T> {
  * Implementation of <code>MatrixData</code> that exposes the diagonal vector of another squared <code>MatrixData</code>
  * @tparam T type of the data
  */
-template<typename T>
+template<typename T, class MD>
 class DiagonalMD : public MatrixData<T> {
 
 	private:
 
-		std::shared_ptr<MatrixData<T>> wrapped;
+		std::shared_ptr<MD> wrapped;
 
 	public:
 
-		explicit DiagonalMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData<T>(wrapped->rows(), 1), wrapped(wrapped) {
+		explicit DiagonalMD(const std::shared_ptr<MD> &wrapped) : MatrixData<T>(wrapped->rows(), 1), wrapped(wrapped) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
+		T get(unsigned int row, unsigned int col) const {
 			return this->wrapped->get(row, row);
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
+		void set(unsigned int row, unsigned int col, T t) {
 			this->wrapped->set(row, row, t);
 		}
 
@@ -182,20 +188,20 @@ class DiagonalMD : public MatrixData<T> {
  * Implementation of <code>MatrixData</code> that exposes a square diagonal matrix of another vector <code>MatrixData</code>
  * @tparam T type of the data
  */
-template<typename T>
+template<typename T, class MD>
 class DiagonalMatrixMD : public MatrixData<T> {
 
 	private:
 
-		std::shared_ptr<MatrixData<T>> wrapped;
+		std::shared_ptr<MD> wrapped;
 
 	public:
 
-		explicit DiagonalMatrixMD(const std::shared_ptr<MatrixData<T>> &wrapped) : MatrixData<T>(wrapped->rows(), wrapped->rows()),
-																				   wrapped(wrapped) {
+		explicit DiagonalMatrixMD(const std::shared_ptr<MD> &wrapped) : MatrixData<T>(wrapped->rows(), wrapped->rows()),
+																		wrapped(wrapped) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
+		T get(unsigned int row, unsigned int col) const {
 			if (row == col) {
 				return this->wrapped->get(row, 0);
 			} else {
@@ -204,139 +210,105 @@ class DiagonalMatrixMD : public MatrixData<T> {
 		}
 };
 
-template<typename I, typename O>
-class ReadOnlyCaster : public MatrixData<O> {
-	protected:
-		std::shared_ptr<MatrixData<I>> wrapped;
-	public:
-
-		explicit ReadOnlyCaster(const std::shared_ptr<MatrixData<I>> &wrapped) : MatrixData<O>(wrapped->rows(), wrapped->columns()),
-																				 wrapped(wrapped) {
-		}
-
-		O get(unsigned int row, unsigned int col) const override {
-			return this->wrapped->get(row, col);
-		}
-};
-
-template<typename I, typename O>
-class Caster : public ReadOnlyCaster<I, O> {
-	public:
-
-		explicit Caster(const std::shared_ptr<MatrixData<I>> &wrapped) : ReadOnlyCaster<I, O>(wrapped) {
-		}
-
-		void set(unsigned int row, unsigned int col, O t) override {
-			this->wrapped->set(row, col, t);
-		}
-};
 
 /**
- * Multiply the given <code>MatrixData</code> by a constant
+ * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
+ * @tparam T type of the data
  */
-template<typename T>
-class ConstantMultiplication : public MatrixData<T> {
+template<typename T, class MD1, class MD2>
+class SumMatrix : public MatrixData<T> {
+
 	private:
-		std::shared_ptr<MatrixData<T>> wrapped;
-		T value;
+		std::shared_ptr<MD1> first;
+		std::shared_ptr<MD2> second;
+
 	public:
-		explicit ConstantMultiplication(const std::shared_ptr<MatrixData<T>> &wrapped, const T value) : MatrixData<T>(wrapped->rows(),
-																													  wrapped->columns()),
-																										wrapped(wrapped), value(value) {}
 
-		T get(unsigned int row, unsigned int col) const override {
-			return this->wrapped->get(row, col) * this->value;
+		explicit SumMatrix(const std::shared_ptr<MD1> &first, const std::shared_ptr<MD2> &second) :
+				MatrixData<T>(first->rows(), second->columns()), first(first), second(second) {
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
-			this->wrapped->set(row, col, t / value);
-		}
-};
-
-/**
- * Add the given <code>MatrixData</code> by a constant
- */
-template<typename T>
-class ConstantAddition : public MatrixData<T> {
-	private:
-		std::shared_ptr<MatrixData<T>> wrapped;
-		T value;
-	public:
-		explicit ConstantAddition(const std::shared_ptr<MatrixData<T>> &wrapped, const T value) : MatrixData<T>(wrapped->rows(),
-																												wrapped->columns()),
-																								  wrapped(wrapped), value(value) {}
-
-		T get(unsigned int row, unsigned int col) const override {
-			return this->wrapped->get(row, col) + this->value;
+		T get(unsigned int row, unsigned int col) const {
+			return this->first->get(row, col) + this->second->get(row, col);
 		}
 
-		void set(unsigned int row, unsigned int col, T t) override {
-			this->wrapped->set(row, col, t - value);
-		}
 };
 
 /**
  * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
  * @tparam T type of the data
  */
-template<typename T>
+template<typename T, class MD1, class MD2>
 class MultiplyMatrix : public MatrixData<T> {
 
 	private:
-		std::shared_ptr<MatrixData<T>> first;
-		std::shared_ptr<MatrixData<T>> second;
-		mutable std::shared_ptr<MatrixData<T>> optimized;
+		std::shared_ptr<MD1> left;
+		std::shared_ptr<MD2> right;
+		mutable bool optimized = false;
+
+		template<typename T, class MD1, class MD2> friend
+		class MultiplyMatrix;
+
 
 	public:
 
-		explicit MultiplyMatrix(const std::shared_ptr<MatrixData<T>> &first, const std::shared_ptr<MatrixData<T>> &second) :
-				MatrixData<T>(first->rows(), second->columns()), first(first), second(second) {
+		explicit MultiplyMatrix(const std::shared_ptr<MD1> &first, const std::shared_ptr<MD2> &second) :
+				MatrixData<T>(first->rows(), second->columns()), left(first), right(second) {
 		}
 
-		T get(unsigned int row, unsigned int col) const override {
-			this->optimize();
+		T get(unsigned int row, unsigned int col) const {
+			if (!this->optimized) {
+				this->optimize();
+			}
+			T ret = 0;
+			for (unsigned int j = 0; j < this->left->columns(); j++) {
+				ret += this->left->get(row, j) * this->right->get(j, col);
+			}
+			return ret;
+			/*this->optimize();
 			if (this->optimized == NULL) {
 				throw "Illegal state";
 			}
 			//std::cout << "Accessing " << row << "," << col << " (" << this->optimized->rows() << "x" << this->optimized->columns() << ")" << std::endl;
-			return this->optimized->get(row, col);
+			return this->optimized->get(row, col);*/
+		}
+
+		void printForMultiplicationDebug() const {
+			std::cout << "(";
+			this->left->printForMultiplicationDebug();
+			std::cout << ")*(";
+			this->right->printForMultiplicationDebug();
+			std::cout << ")";
 		}
 
 	private:
-		void optimize() const {
-			if (optimized.get() == NULL) {
-				//Step 1: getting the chain of multiplications to perform
-				std::vector<std::shared_ptr<MatrixData<T>>> multiplicationChain;
-				this->addToMultiplicationChain(multiplicationChain);
 
-				//Step 2: execute the multiplications in an efficient order, until a single matrix data is left
-				while (multiplicationChain.size() > 1) {
-					//Step 2a: find the multiplication that reduces the multiplication the most
-					auto b = multiplicationChain.begin();
-					auto best = b;
-					for (++b; b < multiplicationChain.end() - 1; ++b) {
-						MatrixData<T> &matrix = **b;
-						if (matrix.columns() > (**best).columns()) {
-							best = b;
-						}
-					}
-					//Step 2b: performing the multiplication
-					MatrixData<T> &leftMatrix = **best;
-					MatrixData<T> &rightMatrix = **(best + 1);
-					std::cout << "Performing (" << leftMatrix.rows() << "x" << leftMatrix.columns() << ") x (" << rightMatrix.rows() << "x"
-							  << rightMatrix.columns() << ")" << std::endl;
+		const MatrixData<T> *findRightmostForMultiplication() const {
+			return this->right->findRightmostForMultiplication();
+		}
+		const MatrixData<T> *findLeftmostForMultiplication() const {
+			return this->left->findRightmostForMultiplication();
+		}
 
-					const std::shared_ptr<MatrixData<T>> &multiplied = computeMultiplication(leftMatrix, rightMatrix);
-
-					//Step 2c: Dispatching the optimization to children, so useful calculations are not lost
-					this->dispatchOptimized(leftMatrix, rightMatrix, multiplied);
-
-					//Step 2d: replacing the two matrices in the chain with the computed product
-					(*best) = multiplied;
-					multiplicationChain.erase(best + 1);
-				}
-				this->optimized = multiplicationChain[0];
+		const MatrixData<T> *findOptimalMatrixForMultiplication(const MatrixData<T> *rightmost) const {
+			auto maxLeft = this->left->findOptimalMatrixForMultiplication(rightmost);
+			auto maxRight = this->right->findOptimalMatrixForMultiplication(rightmost);
+			if (maxRight == rightmost || maxLeft->columns() > maxRight->columns()) {
+				return maxLeft;
+			} else {
+				return maxRight;
 			}
+		}
+
+		void optimize() const {
+			std::cout << "Optimizing";
+			this->printForMultiplicationDebug();
+			const MatrixData<T> *rightMost = this->findRightmostForMultiplication();
+			const MatrixData<T> *optimal = this->findOptimalMatrixForMultiplication(rightMost);
+
+
+			std::cout << std::endl << "Max col = " << optimal->columns() << std::endl;
+			this->optimized = true;
 		}
 
 	protected:
@@ -354,61 +326,6 @@ class MultiplyMatrix : public MatrixData<T> {
 			}
 			return std::dynamic_pointer_cast<MatrixData<T>>(ret);
 		}
-
-		void
-		dispatchOptimized(MatrixData<T> &first, MatrixData<T> &second,
-						  const std::shared_ptr<MatrixData<T>> &multiplied) const {
-			if (&first == this->first.get() && &second == this->second.get()) {
-				this->optimized = multiplied;
-			} else {
-				if (MultiplyMatrix<T> *casted = dynamic_cast<MultiplyMatrix<T> *>(this->first.get())) {
-					casted->dispatchOptimized(first, second, multiplied);
-				}
-				if (MultiplyMatrix<T> *casted = dynamic_cast<MultiplyMatrix<T> *>(this->second.get())) {
-					casted->dispatchOptimized(first, second, multiplied);
-				}
-			}
-		}
-
-		void addToMultiplicationChain(std::vector<std::shared_ptr<MatrixData<T>>> &multiplicationChain) const {
-			if (this->optimized.get() != NULL) {
-				throw "Matrix is optimized!";
-			}
-			addToMultiplicationChain(multiplicationChain, this->first);
-			addToMultiplicationChain(multiplicationChain, this->second);
-		}
-
-		void addToMultiplicationChain(std::vector<std::shared_ptr<MatrixData<T>>> &multiplicationChain, std::shared_ptr<MatrixData<T>> m) const {
-			MultiplyMatrix<T> *casted = dynamic_cast<MultiplyMatrix<T> *>(m.get());
-			if (casted == NULL || casted->optimized.get() != NULL) {
-				multiplicationChain.push_back(m);
-			} else {
-				casted->addToMultiplicationChain(multiplicationChain);
-			}
-		}
-};
-
-/**
- * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
- * @tparam T type of the data
- */
-template<typename T, typename U>
-class SumMatrix : public MatrixData<decltype(T() + U())> {
-
-	private:
-		std::shared_ptr<MatrixData<T>> first;
-		std::shared_ptr<MatrixData<U>> second;
-
-	public:
-
-		explicit SumMatrix(const std::shared_ptr<MatrixData<T>> &first, const std::shared_ptr<MatrixData<U>> &second) :
-				MatrixData<decltype(T() + U())>(first->rows(), second->columns()), first(first), second(second) {
-		}
-
-		decltype(T() + U()) get(unsigned int row, unsigned int col) const override {
-			return this->first->get(row, col) + this->second->get(row, col);
-		}
-
 };
 
 #endif //MATRIX_MATRIXDATA_H

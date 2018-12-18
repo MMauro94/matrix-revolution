@@ -4,8 +4,8 @@
 #include "Matrix.h"
 #include "StaticSizeMatrix.h"
 
-template<typename T>
-void initializeCells(Matrix<T> &m, T rowMultiplier, T colMultiplier) {
+template<typename T, class MD>
+void initializeCells(Matrix<T, MD> &m, T rowMultiplier, T colMultiplier) {
 	for (unsigned int row = 0; row < m.rows(); ++row) {
 		for (unsigned int col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
@@ -21,8 +21,8 @@ void assert(T expected, T actual) {
 	}
 }
 
-template<typename T>
-void assertEqual(const Matrix<T> &m1, const Matrix<T> &m2) {
+template<typename T, class MD1, class MD2>
+void assertEqual(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 	if (m1.rows() != m2.rows() || m1.columns() != m2.columns()) {
 		std::cout << "ERROR: expected matrix of the same size" << std::endl;
 		exit(1);
@@ -65,14 +65,14 @@ int main() {
 	mD.print("%2d");
 	std::cout << "-------------------------" << std::endl << std::endl;
 
-	const StaticSizeMatrix<4, 7, int> &multiplicationAB = mA * mB;
-	const StaticSizeMatrix<9, 8, int> &multiplicationBC = mB * mC;
-	const StaticSizeMatrix<7, 2, int> &multiplicationCD = mC * mD;
-	const StaticSizeMatrix<4, 8, int> &multiplicationABC = multiplicationAB * mC;
-	const StaticSizeMatrix<4, 2, int> &multiplicationABCD = multiplicationAB * multiplicationCD;
-	const StaticSizeMatrix<4, 2, int> &multiplicationABCD2 = mA * mB * mC * mD;
+	auto multiplicationAB = mA * mB;
+	auto multiplicationBC = mB * mC;
+	auto multiplicationCD = mC * mD;
+	auto multiplicationABC = multiplicationAB * mC;
+	auto multiplicationABCD = multiplicationAB * multiplicationCD;
+	auto multiplicationABCD2 = mA * mB * mC * mD;
 
-	const StaticSizeMatrix<4, 9, double> &sum = mA + mAd;
+	auto sum = mA + mAd;
 
 	std::cout << "Matrix AxBxC" << std::endl;
 	multiplicationABC.print("%2d"); // This should perform AxB and (AxB)xC
@@ -90,7 +90,7 @@ int main() {
 	multiplicationABCD2.print("%4d");//This should perform AxB, CxD and (AxB)x(CxD)
 	std::cout << "-------------------------" << std::endl << std::endl;
 
-	assert(954342816, multiplicationABCD.get<3, 1>());
+	assert<int>(954342816, multiplicationABCD.get<3, 1>());
 	assertEqual(multiplicationABCD, multiplicationABCD2);
 	std::cout << "ALL TESTS PASSED" << std::endl;
 	return 0;

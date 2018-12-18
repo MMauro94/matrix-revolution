@@ -4,4 +4,4 @@ project(matrix)
 set(CMAKE_CXX_STANDARD 14)
 include_directories(.)
 
-add_executable(matrix tests.cpp Matrix.h MatrixData.h MatrixIterator.h MatrixCell.h StaticSizeMatrix.h)
+add_executable(matrix multiplicationTests2.cpp Matrix.h MatrixData.h MatrixIterator.h MatrixCell.h StaticSizeMatrix.h)

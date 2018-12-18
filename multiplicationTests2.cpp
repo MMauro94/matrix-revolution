@@ -4,8 +4,8 @@
 #include "Matrix.h"
 #include "StaticSizeMatrix.h"
 
-
-void initializeCells(Matrix<int> &m, int rowMultiplier, int colMultiplier) {
+template<class MD>
+void initializeCells(Matrix<int, MD> &m, int rowMultiplier, int colMultiplier) {
 	for (unsigned int row = 0; row < m.rows(); ++row) {
 		for (unsigned int col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
@@ -30,7 +30,9 @@ int main() {
 	std::cout << "Matrix C" << std::endl;
 	mC.print("%2d");
 
-	const StaticSizeMatrix<2, 2, int> &multiplication = mA * mB * mC;
+	auto multiplication = mA * mB * mC;
+
+	multiplication.printForMultiplicationDebug();
 
 	std::cout << "Matrix AxBxC" << std::endl;
 	multiplication.print("%2d");

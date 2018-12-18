@@ -9,29 +9,30 @@
 #include "MatrixCell.h"
 
 
-template<unsigned int ROWS, unsigned int COLUMNS, typename T>
+template<unsigned int ROWS, unsigned int COLUMNS, typename T, class MD>
 class StaticSizeMatrix;
 
 /**
  * The only class exposed to the user of the library. It provides every method needed to use the matrix.
  * @tparam T the type of the data contained in each matrix cell
  */
-template<typename T>
+template<typename T, class MD = VectorMatrixData<T>>
 class Matrix {
 	private:
 		//This allows us to access protected members of another Matrix of a different type
-		template<typename U> friend
+		template<typename U, class MDD> friend
 		class Matrix;
+
 		//This allows us to access protected members of another StaticSizeMatrix of a different size
-		template<unsigned int R, unsigned int C, typename U> friend
+		template<unsigned int R, unsigned int C, typename U, class MDD> friend
 		class StaticSizeMatrix;
 
 
 	protected:
-		std::shared_ptr<MatrixData<T>> data; //Pointer to the class holding the data
+		std::shared_ptr<MD> data; //Pointer to the class holding the data
 
 		/** Private constructor that accepts a pointer to the data */
-		explicit Matrix(const std::shared_ptr<MatrixData<T>> &data) : data(data) {}
+		explicit Matrix(const std::shared_ptr<MD> &data) : data(data) {}
 
 	public:
 
@@ -48,14 +49,14 @@ class Matrix {
 		 * Copy constructor that triggers a deep copy of the matrix
 		 * @param other the other matrix
 		 */
-		Matrix(const Matrix<T> &other) : data(std::make_shared<VectorMatrixData<T>>(other.data->copy())) {
+		Matrix(const Matrix<T, MD> &other) : data(std::make_shared<VectorMatrixData<T>>(other.data->copy())) {
 		}
 
 		/**
 		 * Move constructor. Default behaviour.
 		 * @param other the other matrix
 		 */
-		Matrix(Matrix<T> &&other) noexcept = default;
+		Matrix(Matrix<T, MD> &&other) noexcept = default;
 
 		const T operator()(unsigned int row, unsigned int col) const {
 			if (row < 0 || row >= this->rows()) {
@@ -66,8 +67,8 @@ class Matrix {
 			return this->data->get(row, col);
 		}
 
-		MatrixCell<T> operator()(unsigned int row, unsigned int col) {
-			return MatrixCell<T>(this->data, row, col);
+		MatrixCell<T, MD> operator()(unsigned int row, unsigned int col) {
+			return MatrixCell<T, MD>(this->data, row, col);
 		}
 
 		/**
@@ -91,127 +92,92 @@ class Matrix {
 			return rows() * columns();
 		}
 
-		Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
+		Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) {
 			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
+			return Matrix<T, SubmatrixMD<T, MD>>(std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
-		const Matrix<T> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
+		const Matrix<T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset, unsigned int rows, unsigned int columns) const {
 			if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return Matrix<T>(std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, rows, columns, this->data));
+			return Matrix<T, SubmatrixMD<T, MD>>(std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, rows, columns, this->data));
 		}
 
 		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		StaticSizeMatrix<ROW_COUNT, COL_COUNT, T> submatrix(unsigned int rowOffset, unsigned int colOffset) {
+		StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset) {
 			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
-					std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
+			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>>(
+					std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
 		}
 
 		template<unsigned int ROW_COUNT, unsigned int COL_COUNT>
-		const StaticSizeMatrix<ROW_COUNT, COL_COUNT, T> submatrix(unsigned int rowOffset, unsigned int colOffset) const {
+		const StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>> submatrix(unsigned int rowOffset, unsigned int colOffset) const {
 			if (rowOffset + ROW_COUNT > this->rows() || colOffset + COL_COUNT > this->columns()) {
 				throw "Illegal bounds";
 			}
-			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T>(
-					std::make_shared<SubmatrixMD<T>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
+			return StaticSizeMatrix<ROW_COUNT, COL_COUNT, T, SubmatrixMD<T, MD>>(
+					std::make_shared<SubmatrixMD<T, MD>>(rowOffset, colOffset, ROW_COUNT, COL_COUNT, this->data));
 		}
 
-		Matrix<T> transpose() {
-			return Matrix<T>(std::make_shared<TransposedMD<T>>(this->data));
+		Matrix<T, TransposedMD<T, MD>> transpose() {
+			return Matrix<T, TransposedMD<T, MD>>(std::make_shared<TransposedMD<T, MD>>(this->data));
 		}
 
-		const Matrix<T> transpose() const {
-			return Matrix<T>(std::make_shared<TransposedMD<T>>(this->data));
+		const Matrix<T, TransposedMD<T, MD>> transpose() const {
+			return Matrix<T, TransposedMD<T, MD>>(std::make_shared<TransposedMD<T, MD>>(this->data));
 		}
 
-		Matrix<T> diagonal() {
+		Matrix<T, DiagonalMD<T, MD>> diagonal() {
 			if (!isSquared()) {
 				throw "diagonal() can only be called on squared matrices";
 			}
-			return Matrix<T>(std::make_shared<DiagonalMD<T>>(this->data));
+			return Matrix<T, DiagonalMD<T, MD>>(std::make_shared<DiagonalMD<T, MD>>(this->data));
 		}
 
-		const Matrix<T> diagonal() const {
+		const Matrix<T, DiagonalMD<T, MD>> diagonal() const {
 			if (!isSquared()) {
 				throw "diagonal() can only be called on squared matrices";
 			}
-			return Matrix<T>(std::make_shared<DiagonalMD<T>>(this->data));
+			return Matrix<T, DiagonalMD<T, MD>>(std::make_shared<DiagonalMD<T, MD>>(this->data));
 		}
 
 		/**
 		* Can only be called on a vector.
 		* @return an immutable diagonal square matrix that has this vector as diagonal and <code>0</code> (zero) in all other positions.
 		*/
-		const Matrix<T> diagonalMatrix() const {
+		const Matrix<T, DiagonalMatrixMD<T, MD>> diagonalMatrix() const {
 			if (!isVector()) {
 				throw "diagonalMatrix() can only be called on vectors (nx1 matrices)";
 			}
-			return Matrix<T>(std::make_shared<DiagonalMatrixMD<T>>(this->data));
-		}
-
-		template<typename O>
-		Matrix<O> cast() {
-			return Matrix<O>(std::make_shared<Caster<T, O>>(this->data));
-		}
-
-		template<typename O>
-		const Matrix<O> cast() const {
-			return Matrix<O>(std::make_shared<Caster<T, O>>(this->data));
-		}
-
-		template<typename O>
-		const Matrix<O> readOnlyCast() const {
-			return Matrix<O>(std::make_shared<ReadOnlyCaster<T, O>>(this->data));
+			return Matrix<T, DiagonalMatrixMD<T, MD>>(std::make_shared<DiagonalMatrixMD<T, MD>>(this->data));
 		}
 
 		/**
 		 * Multiplies the two given matrices
 		 */
-		const Matrix<T> operator*(const Matrix<T> &another) const {
+		template<class MD2>
+		const Matrix<T, MultiplyMatrix<T, MD, MD2>> operator*(const Matrix<T, MD2> &another) const {
 			if (this->columns() != another.rows()) {
 				throw "Multiplication should be performed on compatible matrices";
 			}
-			return Matrix<T>(std::make_shared<MultiplyMatrix<T>>(this->data, another.data));
-		}
-
-		/**
-		 * Multiplies by the given constant
-		 */
-		Matrix<T> operator*(const T another) {
-			return Matrix<T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
-		}
-
-		const Matrix<T> operator*(const T another) const {
-			return Matrix<T>(std::make_shared<ConstantMultiplication<T>>(this->data, another));
+			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(std::make_shared<MultiplyMatrix<T, MD, MD2>>(this->data, another.data));
 		}
 
 		/**
 		 * Adds the two given matrices
 		 */
-		template<typename U>
-		const Matrix<decltype(T() + U())> operator+(const Matrix<U> &another) const {
+		template<typename U, class MD2>
+		const Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>> operator+(const Matrix<U, MD2> &another) const {
 			if (this->columns() != another.columns() || this->rows() != another.rows()) {
 				throw "Addetion should be performed on compatible matrices";
 			}
-			return Matrix<decltype(T() + U())>(std::make_shared<SumMatrix<T, U>>(this->data, another.data));
-		}
-
-		/**
-		 * Adds by the given constant
-		 */
-		Matrix<T> operator+(const T another) {
-			return Matrix<T>(std::make_shared<ConstantAddition<T>>(this->data, another));
-		}
-
-		const Matrix<T> operator+(const T another) const {
-			return Matrix<T>(std::make_shared<ConstantAddition<T>>(this->data, another));
+			return Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
+					std::make_shared<SumMatrix<decltype(T() + U()), MD, MD2>>(this->data, another.data));
 		}
 
 		/**
@@ -239,29 +205,34 @@ class Matrix {
 		/**
 		 * @return an iterator on the first position. This iterator moves from left to right, and then top to bottom.
 		 */
-		MatrixRowMajorIterator<T> beginRowMajor() const {
-			return MatrixRowMajorIterator<T>(this->data, 0, 0);
+		MatrixRowMajorIterator<T, MD> beginRowMajor() const {
+			return MatrixRowMajorIterator<T, MD>(this->data, 0, 0);
 		}
 
 		/**
 		 * @return an iterator on the last position. This iterator moves from left to right, and then top to bottom.
 		 */
-		MatrixRowMajorIterator<T> endRowMajor() const {
-			return MatrixRowMajorIterator<T>(this->data, rows(), 0);
+		MatrixRowMajorIterator<T, MD> endRowMajor() const {
+			return MatrixRowMajorIterator<T, MD>(this->data, rows(), 0);
 		}
 
 		/**
 		 * @return an iterator on the first position. This iterator moves from top to bottom, and then left to right.
 		 */
-		MatrixColumnMajorIterator<T> beginColumnMajor() const {
-			return MatrixColumnMajorIterator<T>(this->data, 0, 0);
+		MatrixColumnMajorIterator<T, MD> beginColumnMajor() const {
+			return MatrixColumnMajorIterator<T, MD>(this->data, 0, 0);
 		}
 
 		/**
 		* @return an iterator on the last position. This iterator moves from top to bottom, and then left to right.
 		*/
-		MatrixColumnMajorIterator<T> endColumnMajor() const {
-			return MatrixColumnMajorIterator<T>(this->data, 0, columns());
+		MatrixColumnMajorIterator<T, MD> endColumnMajor() const {
+			return MatrixColumnMajorIterator<T, MD>(this->data, 0, columns());
+		}
+
+		void printForMultiplicationDebug() const {
+			this->data->printForMultiplicationDebug();
+			std::cout << std::endl;
 		}
 
 		/**
