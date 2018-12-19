@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include "MatrixData.h"
+#include "MultiplyMatrix.h"
 #include "MatrixIterator.h"
 #include "MatrixCell.h"
 
