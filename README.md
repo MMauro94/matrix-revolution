@@ -184,7 +184,7 @@ This library support adding matrices of different types. For example, a matrix o
 ```c++
 StaticSizeMatrix<4, 3, int> m1;
 Matrix<double> m2(4, 3);
-const Matrix<double> sum = m1 + m2;
+const auto sum = m1 + m2; //sum is a Matrix of double
 ```
 This is accomplished using the `decltype` specifier, which allows to know the type of the result of the sum of two types. For example, the signature of the addition is the following:
 ```c++
