@@ -176,6 +176,12 @@ class Matrix {
 					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
 		}
 
+		template<unsigned ROWS, unsigned COLUMNS, typename U, class MD2>
+		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD2, MD>>
+		operator+(const StaticSizeMatrix<ROWS, COLUMNS, U, MD2> &another) const {
+			return another + (*this);
+		}
+
 		/**
  		 * @return true if this matrix is a square (has the same number of rows and columns)
  		 */
