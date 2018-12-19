@@ -1,5 +1,5 @@
 # matrix-revolution
-A simple C++ library to work with matrices.
+A C++ library to work with matrices.
 
 ## Context
 This library was made for the [Advanced Algorithms and Programming Methods](https://www.unive.it/data/insegnamento/274858) class held by professor [Andrea Torsello](https://www.unive.it/data/5115/5590629) at [Ca' Foscari University - Venice](https://www.unive.it) in the academic year 2018/19.
