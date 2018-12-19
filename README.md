@@ -42,7 +42,7 @@ std::cout << m3(1,3); //Prints 10
 m3(1,3) = 30; //Compile error
 ```
 
-###Static matrix
+### Static matrix
 If you know the size of the matrix at static time, you could use the class `StaticSizeMatrix`, which extends `Matrix`.
 ```c++
 StaticSizeMatrix<10, 20, int> m; //Creates a 10x20 matrix of integers
@@ -164,7 +164,7 @@ Using `std::enable_if` also allows the IDE to understand the checks, which doesn
 ### Vectors and covectors
 When using the class `Matrix`, vectors and covectors are not specially handled. They are simply a `nx1` and `1xn` matrices. There are the methods `isVector()` and `isCovector()`. We chose to do this because they are simply a property of a matrix, and are not a characterization (e.g. a `1x1` matrix is both a vector and a covector).
 
-###Multiplication optimizations
+### Multiplication optimizations
 When performing a multiplication between three or more matrices, like `m1 * m2 * m3`, the order of operations will be rearranged in order to reduce the total number of calculations needed.
 
 For example, then multiplying a `2x3`, `3x5` and `5x2` matrices, the `(3x5)*(5x2)` multiplication will be executed first, since it will reduce by `5` the number of dimensions.
@@ -179,7 +179,7 @@ This is done inside the decorator class `MultiplyMatrix`. At the first access to
 
 In the end, there will be an optimized operation tree, which can be accessed in an optimal order.
 
-##Sum between matrices of different types
+## Sum between matrices of different types
 This library support adding matrices of different types. For example, a matrix of double is returned when adding a matrix of int and a matrix of doubles.
 ```c++
 StaticSizeMatrix<4, 3, int> m1;
