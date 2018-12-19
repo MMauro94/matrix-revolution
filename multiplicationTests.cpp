@@ -43,8 +43,6 @@ int main() {
 	initializeCells(mA, 12, 5);
 	initializeCells<double>(mAd, 12, 5);
 
-	assertEqual(mA.readOnlyCast<double>(), mAd);
-
 	initializeCells(mB, 7, 13);
 	initializeCells(mC, 3, 8);
 	initializeCells(mD, 2, 4);
@@ -90,7 +88,7 @@ int main() {
 	multiplicationABCD2.print("%4d");//This should perform AxB, CxD and (AxB)x(CxD)
 	std::cout << "-------------------------" << std::endl << std::endl;
 
-	assert<int>(954342816, multiplicationABCD.get<3, 1>());
+	assert<int>(1034658912, multiplicationABCD.get<3, 1>());
 	assertEqual(multiplicationABCD, multiplicationABCD2);
 	std::cout << "ALL TESTS PASSED" << std::endl;
 	return 0;

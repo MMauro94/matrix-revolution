@@ -155,12 +155,13 @@ class Matrix {
 		/**
 		 * Multiplies the two given matrices
 		 */
-		template<class MD2>
-		const Matrix<T, MultiplyMatrix<T, MD, MD2>> operator*(const Matrix<T, MD2> &another) const {
+		template<typename U, class MD2>
+		const Matrix<decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>> operator*(const Matrix<U, MD2> &another) const {
 			if (this->columns() != another.rows()) {
 				throw "Multiplication should be performed on compatible matrices";
 			}
-			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(MultiplyMatrix<T, MD, MD2>(this->data, another.data));
+			return Matrix<decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>>(
+					MultiplyMatrix<decltype(T() * U()), MD, MD2>(this->data, another.data));
 		}
 
 		/**

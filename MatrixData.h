@@ -26,20 +26,14 @@ class MatrixData {
 		class MultiplyMatrix;
 
 	protected:
-		const MatrixData<T> *findOptimalMatrixForMultiplication(const MatrixData<T> *rightmost) const {
-			return this;
-		}
-
-		const MatrixData<T> *findRightmostForMultiplication() const {
-			return this;
-		}
-
-		const MatrixData<T> *findLeftmostForMultiplication() const {
-			return this;
+		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
+			multiplicationChain.push_back(this);
 		}
 
 	public:
 		MatrixData(unsigned rows, unsigned columns) : _rows(rows), _columns(columns) {}
+
+		virtual ~MatrixData() = default;
 
 		/**
 		 * @return number of columns
@@ -54,6 +48,9 @@ class MatrixData {
 		unsigned rows() const {
 			return this->_rows;
 		}
+
+
+		virtual T virtualGet(unsigned row, unsigned col) const = 0;
 
 		void printForMultiplicationDebug() const {
 			std::cout << this->_rows << "x" << this->_columns;
@@ -71,8 +68,8 @@ class VectorMatrixData : public MatrixData<T> {
 		std::shared_ptr<std::vector<T>> vector;
 	public:
 
-		explicit VectorMatrixData(unsigned rows, unsigned columns, std::shared_ptr<std::vector<T>> vector) : MatrixData<T>(rows, columns),
-																											 vector(vector) {
+		VectorMatrixData(unsigned rows, unsigned columns, std::shared_ptr<std::vector<T>> vector) : MatrixData<T>(rows, columns),
+																									vector(vector) {
 		}
 
 		VectorMatrixData(unsigned rows, unsigned columns) : MatrixData<T>(rows, columns),
@@ -81,6 +78,10 @@ class VectorMatrixData : public MatrixData<T> {
 
 		T get(unsigned row, unsigned col) const {
 			return (*this->vector.get())[row * this->columns() + col];
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
 		}
 
 		void set(unsigned row, unsigned col, T t) {
@@ -115,6 +116,10 @@ class SubmatrixMD : public MatrixData<T> {
 			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
 		}
 
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
+		}
+
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(row + this->rowOffset, col + this->colOffset, t);
 		}
@@ -142,6 +147,10 @@ class TransposedMD : public MatrixData<T> {
 
 		T get(unsigned row, unsigned col) const {
 			return this->wrapped.get(col, row);
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
 		}
 
 		void set(unsigned row, unsigned col, T t) {
@@ -172,6 +181,10 @@ class DiagonalMD : public MatrixData<T> {
 
 		T get(unsigned row, unsigned col) const {
 			return this->wrapped.get(row, row);
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
 		}
 
 		void set(unsigned row, unsigned col, T t) {
@@ -209,6 +222,10 @@ class DiagonalMatrixMD : public MatrixData<T> {
 			}
 		}
 
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
+		}
+
 		DiagonalMatrixMD<T, MD> copy() const {
 			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
 		}
@@ -236,6 +253,9 @@ class SumMatrix : public MatrixData<T> {
 			return this->left.get(row, col) + this->right.get(row, col);
 		}
 
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
+		}
 
 		SumMatrix<T, MD1, MD2> copy() const {
 			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
@@ -252,94 +272,95 @@ class MultiplyMatrix : public MatrixData<T> {
 	private:
 		MD1 left;
 		MD2 right;
-		mutable bool optimized = false;
+		mutable std::shared_ptr<MatrixData<T>> optimized;
 
-		template<typename T, class MD1, class MD2> friend
+		template<typename U, class MD3, class MD4> friend
 		class MultiplyMatrix;
-
 
 	public:
 
-		explicit MultiplyMatrix(MD1 left, MD2 right) :
+		MultiplyMatrix(MD1 left, MD2 right) :
 				MatrixData<T>(left.rows(), right.columns()), left(left), right(right) {
 		}
 
-		T get(unsigned row, unsigned col) const {
-			if (!this->optimized) {
-				this->optimize();
-			}
-			T ret = 0;
-			for (unsigned j = 0; j < this->left.columns(); j++) {
-				ret += this->left.get(row, j) * this->right.get(j, col);
-			}
-			return ret;
-			/*this->optimize();
+		T get(unsigned int row, unsigned int col) const {
+			this->optimize();
 			if (this->optimized == NULL) {
 				throw "Illegal state";
 			}
-			//std::cout << "Accessing " << row << "," << col << " (" << this->optimized.rows() << "x" << this->optimized.columns() << ")" << std::endl;
-			return this->optimized.get(row, col);*/
+			return this->optimized->virtualGet(row, col);
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
 		}
 
 		MultiplyMatrix<T, MD1, MD2> copy() const {
 			return MultiplyMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
 
-		void printForMultiplicationDebug() const {
-
-			std::cout << "(";
-			this->left.printForMultiplicationDebug();
-			std::cout << ")*(";
-			this->right.printForMultiplicationDebug();
-			std::cout << ")";
-		}
-
 	private:
-
-		const MatrixData<T> *findRightmostForMultiplication() const {
-			return this->right.findRightmostForMultiplication();
-		}
-
-		const MatrixData<T> *findLeftmostForMultiplication() const {
-			return this->left.findRightmostForMultiplication();
-		}
-
-		const MatrixData<T> *findOptimalMatrixForMultiplication(const MatrixData<T> *rightmost) const {
-			auto maxLeft = this->left.findOptimalMatrixForMultiplication(rightmost);
-			auto maxRight = this->right.findOptimalMatrixForMultiplication(rightmost);
-			if (maxRight == rightmost || maxLeft->columns() > maxRight->columns()) {
-				return maxLeft;
-			} else {
-				return maxRight;
-			}
-		}
-
 		void optimize() const {
-			std::cout << "Optimizing";
-			this->printForMultiplicationDebug();
-			const MatrixData<T> *rightMost = this->findRightmostForMultiplication();
-			const MatrixData<T> *optimal = this->findOptimalMatrixForMultiplication(rightMost);
+			if (optimized.get() == NULL) {
+				//Step 1: getting the chain of multiplications to perform
+				std::vector<MatrixData<T> *> multiplicationChain;
+				const_cast<MultiplyMatrix<T, MD1, MD2> *>
+				(this)->addToMultiplicationChain(multiplicationChain);
 
+				std::vector<VectorMatrixData<T>> computedMultiplications;//Needed to keep the pointers!
+				computedMultiplications.reserve(multiplicationChain.size() - 1);
 
-			std::cout << std::endl << "Max col = " << optimal->columns() << std::endl;
-			this->optimized = true;
+				//Step 2: execute the multiplications in an efficient order, until a single matrix data is left
+				while (multiplicationChain.size() > 1) {
+					//Step 2a: find the multiplication that reduces the multiplication the most
+					unsigned bestIndex = 0;
+					for (unsigned i = 0; i < multiplicationChain.size() - 1; i++) {
+						if (multiplicationChain[i]->columns() > multiplicationChain[bestIndex]->columns()) {
+							bestIndex = i;
+						}
+					}
+					MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
+					MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
+					//Step 2b: performing the multiplication and saving it
+					computedMultiplications.push_back(computeMultiplication(leftMatrix, rightMatrix));
+
+					//Step 2c: replacing the two matrices in the chain with the computed product
+					multiplicationChain.erase(multiplicationChain.begin() + bestIndex + 1);
+					multiplicationChain[bestIndex] = &computedMultiplications.back();
+				}
+
+				//Step 3: the last item in the chain is the multiplication result.
+				// It is a VectorMatrixData, since it comes from computeMultiplication().
+				VectorMatrixData<T> optimizedVector = *dynamic_cast<VectorMatrixData<T> *>(multiplicationChain[0]);
+				this->optimized = std::make_shared<VectorMatrixData<T>>(optimizedVector);
+			}
 		}
 
 	protected:
 		template<typename T>
-		static VectorMatrixData<T> computeMultiplication(MatrixData<T> &left, MatrixData<T> &right) {
-			auto ret = VectorMatrixData<T>(left.rows(), right.columns());
-			for (unsigned r = 0; r < ret.rows(); r++) {
-				for (unsigned c = 0; c < ret.columns(); c++) {
+		static VectorMatrixData<T> computeMultiplication(MatrixData<T> *left, MatrixData<T> *right) {
+			VectorMatrixData<T> ret(left->rows(), right->columns());
+			for (unsigned int r = 0; r < ret.rows(); r++) {
+				for (unsigned int c = 0; c < ret.columns(); c++) {
 					T cell = 0;
-					for (unsigned j = 0; j < left.columns(); j++) {
-						cell += left.get(r, j) * right.get(j, c);
+					for (unsigned j = 0; j < left->columns(); j++) {
+						cell += left->virtualGet(r, j) * right->virtualGet(j, c);
 					}
-					ret->set(r, c, cell);
+					ret.set(r, c, cell);
 				}
 			}
 			return ret;
 		}
+
+		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
+			if (this->optimized.get() != NULL) {
+				multiplicationChain.push_back(this->optimized.get());
+			} else {
+				this->left.addToMultiplicationChain(multiplicationChain);
+				this->right.addToMultiplicationChain(multiplicationChain);
+			};
+		}
 };
+
 
 #endif //MATRIX_MATRIXDATA_H
