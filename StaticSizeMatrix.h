@@ -122,8 +122,20 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
 		}
 
-		using Matrix<T, MD>::operator+;
 
+		template<typename U, class MD2>
+		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>
+		operator+(const Matrix<U, MD2> &another) const {
+			if (this->columns() != another.columns() || this->rows() != another.rows()) {
+				throw "Addetion should be performed on compatible matrices";
+			}
+			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
+					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
+		}
+
+		StaticSizeMatrix<ROWS, COLUMNS, T, VectorMatrixData<T>> copy() const {
+			return StaticSizeMatrix<ROWS, COLUMNS, T, VectorMatrixData<T>>(VectorMatrixData<T>::template toVector<MD>(this->data));
+		}
 
 };
 

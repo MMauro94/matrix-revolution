@@ -32,8 +32,6 @@ int main() {
 
 	auto multiplication = mA * mB * mC;
 
-	multiplication.printForMultiplicationDebug();
-
 	std::cout << "Matrix AxBxC" << std::endl;
 	multiplication.print("%2d");
 	return 0;

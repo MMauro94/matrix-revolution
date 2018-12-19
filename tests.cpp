@@ -186,7 +186,7 @@ void testMultiplicationAndAddition() {
 	auto sum1b = m2 + m1;
 	auto sum1c = m1 + m1;
 	auto multiplication1c = m3 * m4;
-	auto multiplication1a = m1 * m3;
+	const auto multiplication1a = m1 * m3;
 
 	//m1.print("%02d");
 	//m2.print("%02d");
@@ -218,10 +218,13 @@ void testMultiplicationAndAddition() {
 
 void testBasicStuff() {
 	Matrix<int> sq(10, 10);
+	StaticSizeMatrix<10, 10, int> sqStatic;
 	StaticSizeMatrix<15, 20, int> static1;
 	StaticSizeMatrix<20, 3, int> static2;
 	Matrix<int> rect(5, 10);
 	Matrix<int> vector(10, 1);
+	auto multiplied1 = (sq * sq.transpose()).copy();
+	StaticSizeMatrix<5, 5, int> multiplied2 = (sqStatic * sqStatic.transpose()).diagonal().diagonalMatrix().submatrix<5, 5>(1, 1).copy();
 
 	auto transposed = static1.transpose();
 	auto submatrix = static1.submatrix<6, 7, 4, 5>();
@@ -235,6 +238,8 @@ void testBasicStuff() {
 	test<int>(sq);
 	test<int>(static1);
 	test<int>(transposed);
+	test<int>(multiplied1);
+	test<int>(multiplied2);
 	test<int>(rect);
 	test<int>(vector);
 }

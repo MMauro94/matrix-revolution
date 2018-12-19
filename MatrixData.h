@@ -26,6 +26,10 @@ class MatrixData {
 		class MultiplyMatrix;
 
 	protected:
+
+		/**
+		 * Adds itself to the multiplication chain
+		 */
 		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
 			multiplicationChain.push_back(this);
 		}
@@ -52,9 +56,6 @@ class MatrixData {
 
 		virtual T virtualGet(unsigned row, unsigned col) const = 0;
 
-		void printForMultiplicationDebug() const {
-			std::cout << this->_rows << "x" << this->_columns;
-		}
 };
 
 /**
@@ -91,6 +92,17 @@ class VectorMatrixData : public MatrixData<T> {
 		VectorMatrixData<T> copy() const {
 			//std::cout << "copying" << std::endl;
 			return VectorMatrixData<T>(this->rows(), this->columns(), std::make_shared<std::vector<T>>(*this->vector.get()));
+		}
+
+		template<class MD>
+		static VectorMatrixData<T> toVector(MD matrixData) {
+			VectorMatrixData<T> ret(matrixData.rows(), matrixData.columns());
+			for (unsigned r = 0; r < ret.rows(); r++) {
+				for (unsigned c = 0; c < ret.columns(); c++) {
+					ret.set(r, c, matrixData.get(r, c));
+				}
+			}
+			return ret;
 		}
 };
 
@@ -261,7 +273,6 @@ class SumMatrix : public MatrixData<T> {
 			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
 };
-
 
 
 #endif //MATRIX_MATRIXDATA_H

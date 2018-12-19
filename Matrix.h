@@ -33,7 +33,7 @@ class Matrix {
 		MD data; //Pointer to the class holding the data
 
 		/** Private constructor that accepts a pointer to the data */
-		explicit Matrix(MD &data) : data(data) {}
+		explicit Matrix(MD data) : data(data) {}
 
 	public:
 
@@ -45,8 +45,7 @@ class Matrix {
 		explicit Matrix(unsigned rows, unsigned columns) : data(VectorMatrixData<T>(rows, columns)) {
 		}
 
-		Matrix(const Matrix<T, MD> &other) : data(other.data.copy()) {
-		}
+		Matrix(const Matrix<T, MD> &other) : data(other.data.copy()) {}
 
 		/**
 		 * Move constructor. Default behaviour.
@@ -227,9 +226,8 @@ class Matrix {
 			return MatrixColumnMajorIterator<T, MD>(this->data, 0, columns());
 		}
 
-		void printForMultiplicationDebug() const {
-			this->data.printForMultiplicationDebug();
-			std::cout << std::endl;
+		Matrix<T, VectorMatrixData<T>> copy() const {
+			return Matrix<T, VectorMatrixData<T>>(VectorMatrixData<T>::template toVector<MD>(this->data));
 		}
 
 		/**

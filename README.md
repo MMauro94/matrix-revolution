@@ -64,7 +64,7 @@ m.get<40, 60>() = 10; //Compiler error! Index out of bounds
 When using a `StaticSizeMatrix`, some methods will be enabled only for some specific matrices. For example, the diagonal can be obtained only for square matrices.
 
 ### Additions and multiplications
-Both `Matrix` and `StaticSizeMatrix` support addition and multiplication by a constat or by another `Matrix` or `StaticSizeMatrix`.
+Both `Matrix` and `StaticSizeMatrix` support addition and multiplication by another `Matrix` or `StaticSizeMatrix`.
 
 When the size of the resulting matrix can be inferred at compile time, a `StaticSizeMatrix` is returned, otherwise a `Matrix` is returned.
 
@@ -157,9 +157,9 @@ For this reason we decided to delete the copy constructor. We could have trigger
 ### Static matrices specialization
 When the size of a matrix is known at compile time, it is better to use `StaticSieMatrix`. This will enable additional checks at compile time, in order to reduce as much as possible the number of errors that can be raised at runtime.
 
-To accomplish this, the library uses //TODOenable_if. This is a more flexible alternative to template specialization, since it allows to add some methods (e.g. adding the `diagonal` method for square matrices), as well as doing some parameter check (e.g. checking the bounds of the `submatrix`). 
+To accomplish this, the library uses `std::enable_if`. This is a more flexible alternative to template specialization, since it allows to add some methods (e.g. adding the `diagonal` method for square matrices), as well as doing some parameter check (e.g. checking the bounds of the `submatrix`). 
 
-Using //TODOenable_if also allows the IDE to understand the checks, which doesn't happen when using `static_assert` or other similar alternatives.
+Using `std::enable_if` also allows the IDE to understand the checks, which doesn't happen when using `static_assert` or other similar alternatives.
 
 ### Vectors and covectors
 When using the class `Matrix`, vectors and covectors are not specially handled. They are simply a `nx1` and `1xn` matrices. There are the methods `isVector()` and `isCovector()`. We chose to do this because they are simply a property of a matrix, and are not a characterization (e.g. a `1x1` matrix is both a vector and a covector).
