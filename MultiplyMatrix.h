@@ -7,6 +7,9 @@
 
 #include "MatrixData.h"
 
+template<typename T>
+class VirtualMultiplyMatrix;
+
 /**
  * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
  * @tparam T type of the data
@@ -17,8 +20,9 @@ class MultiplyMatrix : public MatrixData<T> {
 	private:
 		MD1 left;
 		MD2 right;
-		mutable std::shared_ptr<MatrixData<T>> optimizedMatrix;
+		mutable std::shared_ptr<VirtualMultiplyMatrix<T>> optimizedMatrix;
 		mutable bool optimized = false;
+		mutable std::vector<VirtualMultiplyMatrix<T>> computedMultiplications;//Needed to keep the pointers!
 
 		template<typename U, class MD3, class MD4> friend
 		class MultiplyMatrix;
@@ -38,7 +42,7 @@ class MultiplyMatrix : public MatrixData<T> {
 				}
 				return ret;
 			} else {
-				return this->optimizedMatrix->virtualGet(row, col);
+				return this->optimizedMatrix->get(row, col);
 			}
 		}
 
@@ -59,8 +63,6 @@ class MultiplyMatrix : public MatrixData<T> {
 				(this)->addToMultiplicationChain(multiplicationChain);
 				if (multiplicationChain.size() > 2) {
 					//Step 2: If I multiply only two matrices, no optimization is performed, since it will be faster to just access the data
-
-					std::vector<VectorMatrixData<T>> computedMultiplications;//Needed to keep the pointers!
 					computedMultiplications.reserve(multiplicationChain.size() - 1);
 
 					//Step 3: execute the multiplications in an efficient order, until a single matrix data is left
@@ -74,38 +76,26 @@ class MultiplyMatrix : public MatrixData<T> {
 						}
 						MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
 						MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
-						//Step 3b: performing the multiplication and saving it
-						computedMultiplications.push_back(computeMultiplication(leftMatrix, rightMatrix));
 
-						//Step 3c: replacing the two matrices in the chain with the computed product
+						//Step 3b: replacing the two matrices in the chain with the computed product
+						//Creating the multiplication
+						const VirtualMultiplyMatrix<T> &multiplication = VirtualMultiplyMatrix<T>(leftMatrix, rightMatrix);
+						computedMultiplications.push_back(multiplication);
+						//Replacing the two matrices with the multiplication
 						multiplicationChain.erase(multiplicationChain.begin() + bestIndex + 1);
 						multiplicationChain[bestIndex] = &computedMultiplications.back();
 					}
 
 					//Step 4: the last item in the chain is the multiplication result.
-					// It is a VectorMatrixData, since it comes from computeMultiplication().
-					VectorMatrixData<T> optimizedVector = *dynamic_cast<VectorMatrixData<T> *>(multiplicationChain[0]);
-					this->optimizedMatrix = std::make_shared<VectorMatrixData<T >>(optimizedVector);
+					// It is a VirtualMultiplyMatrix, since it comes from computeMultiplication().
+					VirtualMultiplyMatrix<T> optimizedVector = *dynamic_cast<VirtualMultiplyMatrix<T> *>(multiplicationChain[0]);
+					this->optimizedMatrix = std::make_shared<VirtualMultiplyMatrix<T >>(optimizedVector);
 				}
 				this->optimized = true;
 			}
 		}
 
 	protected:
-		template<typename T>
-		static VectorMatrixData<T> computeMultiplication(MatrixData<T> *left, MatrixData<T> *right) {
-			VectorMatrixData<T> ret(left->rows(), right->columns());
-			for (unsigned int r = 0; r < ret.rows(); r++) {
-				for (unsigned int c = 0; c < ret.columns(); c++) {
-					T cell = 0;
-					for (unsigned j = 0; j < left->columns(); j++) {
-						cell += left->virtualGet(r, j) * right->virtualGet(j, c);
-					}
-					ret.set(r, c, cell);
-				}
-			}
-			return ret;
-		}
 
 		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
 			if (this->optimizedMatrix.get() != NULL) {
@@ -114,6 +104,59 @@ class MultiplyMatrix : public MatrixData<T> {
 				this->left.addToMultiplicationChain(multiplicationChain);
 				this->right.addToMultiplicationChain(multiplicationChain);
 			};
+		}
+};
+
+
+template<typename T>
+class VirtualMultiplyMatrix : public MatrixData<T> {
+
+	private:
+		MatrixData<T> *left;
+		MatrixData<T> *right;
+		mutable std::shared_ptr<VectorMatrixData<T>> optimizedMatrix = NULL;
+		mutable bool optimized = false;
+
+	public:
+
+		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right) :
+				MatrixData<T>(left->rows(), right->columns()), left(left), right(right) {
+		}
+
+		T get(unsigned int row, unsigned int col) const {
+			this->optimizeIfNecessary();
+			if (this->optimizedMatrix == NULL) {
+				throw "Illegal state";
+			}
+			return this->optimizedMatrix->get(row, col);
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
+		}
+
+	private:
+
+		template<typename T>
+		static std::shared_ptr<VectorMatrixData<T>> computeMultiplication(MatrixData<T> *left, MatrixData<T> *right) {
+			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(left->rows(), right->columns());
+			for (unsigned int r = 0; r < ret->rows(); r++) {
+				for (unsigned int c = 0; c < ret->columns(); c++) {
+					T cell = 0;
+					for (unsigned j = 0; j < left->columns(); j++) {
+						cell += left->virtualGet(r, j) * right->virtualGet(j, c);
+					}
+					ret->set(r, c, cell);
+				}
+			}
+			return ret;
+		}
+
+		void optimizeIfNecessary() const {
+			if (!this->optimized) {
+				this->optimizedMatrix = computeMultiplication(this->left, this->right);
+				this->optimized = true;
+			}
 		}
 };
 

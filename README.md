@@ -174,9 +174,10 @@ This is done inside the decorator class `MultiplyMatrix`. At the first access to
 2.  If the chain is only two matrices long, I can stop the optimization in order to keep accessing the data without using virtual operators
 3.  While the chain has more than one element:
     1.  Find the pair of matrices in the chain that will be the most efficient to multiply
-    2.  Multiply the two matrices
-    3.  Replacing the two matrices with the multiplication
+    2.  Replacing the two matrices with a `MatrixData` that represents their multiplication
 4.  The last matrix in the chain is the result of the multiplication
+
+In the end, there will be an optimized operation tree, which can be accessed in an optimal order.
 
 ##Sum between matrices of different types
 This library support adding matrices of different types. For example, a matrix of double is returned when adding a matrix of int and a matrix of doubles.
