@@ -8,24 +8,24 @@
  * Base iterator with common methods
  * @tparam T type of data
  */
-template<typename T>
+template<typename T, class MD>
 class BaseMatrixIterator {
 	protected:
-		std::shared_ptr<MatrixData<T>> data;
-		unsigned int row, col;
+		MD data;
+		unsigned row, col;
 
 	public:
-		BaseMatrixIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : data(data), row(row), col(col) {}
+		BaseMatrixIterator(MD data, unsigned row, unsigned col) : data(data), row(row), col(col) {}
 
 		T operator*() {
-			return data->get(row, col);
+			return data.get(row, col);
 		}
 
-		bool operator==(const BaseMatrixIterator<T> &other) const {
-			return row == other.row && col == other.col && data == other.data;
+		bool operator==(const BaseMatrixIterator<T, MD> &other) const {
+			return row == other.row && col == other.col;
 		}
 
-		bool operator!=(const BaseMatrixIterator<T> &other) const {
+		bool operator!=(const BaseMatrixIterator<T, MD> &other) const {
 			return !(*this == other);
 		}
 };
@@ -34,14 +34,14 @@ class BaseMatrixIterator {
  * Iterator that iterates in row-major order
  * @tparam T type of data
  */
-template<typename T>
-class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
+template<typename T, class MD>
+class MatrixRowMajorIterator : public BaseMatrixIterator<T, MD> {
 	public:
-		MatrixRowMajorIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : BaseMatrixIterator<T>(data, row,
-																																	   col) {}
+		MatrixRowMajorIterator(MD data, unsigned row, unsigned col) : BaseMatrixIterator<T, MD>(data, row,
+																										col) {}
 
 		void operator++() {
-			if (this->col + 1 >= this->data->columns()) {
+			if (this->col + 1 >= this->data.columns()) {
 				this->row++;
 				this->col = 0;
 			} else {
@@ -52,7 +52,7 @@ class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
 		void operator--() {
 			if (this->col == 0) {
 				this->row--;
-				this->col = this->data->columns() - 1;
+				this->col = this->data.columns() - 1;
 			} else {
 				this->col--;
 			}
@@ -64,14 +64,14 @@ class MatrixRowMajorIterator : public BaseMatrixIterator<T> {
  * Iterator that iterates in column-major order
  * @tparam T type of data
  */
-template<typename T>
-class MatrixColumnMajorIterator : public BaseMatrixIterator<T> {
+template<typename T, class MD>
+class MatrixColumnMajorIterator : public BaseMatrixIterator<T, MD> {
 	public:
-		MatrixColumnMajorIterator(const std::shared_ptr<MatrixData<T>> &data, unsigned int row, unsigned int col) : BaseMatrixIterator<T>(data, row,
-																																		  col) {}
+		MatrixColumnMajorIterator(MD data, unsigned row, unsigned col) : BaseMatrixIterator<T, MD>(data, row,
+																										   col) {}
 
 		void operator++() {
-			if (this->row + 1 >= this->data->rows()) {
+			if (this->row + 1 >= this->data.rows()) {
 				this->col++;
 				this->row = 0;
 			} else {
@@ -82,7 +82,7 @@ class MatrixColumnMajorIterator : public BaseMatrixIterator<T> {
 		void operator--() {
 			if (this->row == 0) {
 				this->col--;
-				this->row = this->data->rows() - 1;
+				this->row = this->data.rows() - 1;
 			} else {
 				this->row--;
 			}

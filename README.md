@@ -1,5 +1,5 @@
 # matrix-revolution
-A simple C++ library to work with matrices.
+A C++ library to work with matrices.
 
 ## Context
 This library was made for the [Advanced Algorithms and Programming Methods](https://www.unive.it/data/insegnamento/274858) class held by professor [Andrea Torsello](https://www.unive.it/data/5115/5590629) at [Ca' Foscari University - Venice](https://www.unive.it) in the academic year 2018/19.
@@ -64,7 +64,7 @@ m.get<40, 60>() = 10; //Compiler error! Index out of bounds
 When using a `StaticSizeMatrix`, some methods will be enabled only for some specific matrices. For example, the diagonal can be obtained only for square matrices.
 
 ### Additions and multiplications
-Both `Matrix` and `StaticSizeMatrix` support addition and multiplication by a constat or by another `Matrix` or `StaticSizeMatrix`.
+Both `Matrix` and `StaticSizeMatrix` support addition and multiplication by another `Matrix` or `StaticSizeMatrix`.
 
 When the size of the resulting matrix can be inferred at compile time, a `StaticSizeMatrix` is returned, otherwise a `Matrix` is returned.
 
@@ -121,9 +121,23 @@ for (auto it = m.beginColumnMajor(); it != m.endColumnMajor(); ++it) {
 }
 ```
 
-
 ## Implementation details
-The library has been implemented using the [decorator pattern](https://en.wikipedia.org/wiki/Decorator_pattern). 
+The library has been implemented using the [decorator pattern](https://en.wikipedia.org/wiki/Decorator_pattern). The full type information is added in the template of `Matrix` and `StaticSizeMatrix`, in order to increase performances. 
+
+### Performances
+The library keeps full type information about the operation performed. This means that accessing the data doesn't require any call to virtual methods. This allows the compiler to fully inline the code, even after multiple call chains.
+
+Take the following example:
+```c++
+Matrix<int> m(1000,2000);
+auto m2 = m.transpose().submatrix(5, 5, 990, 1990).transpose().diagonal();
+std::cout << m2(0, 0);
+```
+In this example, accessing data on the `m2` matrix is completely inlined by the compiler. 
+
+This is achieved by keeping the full decoration information on the template.
+
+The only exception to this rule is when performing matrix multiplication between three or more matrices. This is because the order of multiplications will be rearranged in order to reduce the total number of calculations needed. 
 
 ### MatrixData
 The `MatrixData` class is an abstract class whose purpose is to expose the getter and setter for the data. In our implementation, the set can throw an exception if the operation is not supported.
@@ -143,43 +157,45 @@ For this reason we decided to delete the copy constructor. We could have trigger
 ### Static matrices specialization
 When the size of a matrix is known at compile time, it is better to use `StaticSieMatrix`. This will enable additional checks at compile time, in order to reduce as much as possible the number of errors that can be raised at runtime.
 
-To accomplish this, the library uses //TODOenable_if. This is a more flexible alternative to template specialization, since it allows to add some methods (e.g. adding the `diagonal` method for square matrices), as well as doing some parameter check (e.g. checking the bounds of the `submatrix`). 
+To accomplish this, the library uses `std::enable_if`. This is a more flexible alternative to template specialization, since it allows to add some methods (e.g. adding the `diagonal` method for square matrices), as well as doing some parameter check (e.g. checking the bounds of the `submatrix`). 
 
-Using //TODOenable_if also allows the IDE to understand the checks, which doesn't happen when using `static_assert` or other similar alternatives.
+Using `std::enable_if` also allows the IDE to understand the checks, which doesn't happen when using `static_assert` or other similar alternatives.
 
-### Multiplication optimization
-When performing a chain of multiplications, the order in which the products are performed may be optimized on order to reduce the totl number of calculations. In particular, the product which shrinks the matrices the most will be executed first.
+### Vectors and covectors
+When using the class `Matrix`, vectors and covectors are not specially handled. They are simply a `nx1` and `1xn` matrices. There are the methods `isVector()` and `isCovector()`. We chose to do this because they are simply a property of a matrix, and are not a characterization (e.g. a `1x1` matrix is both a vector and a covector).
+
+###Multiplication optimizations
+When performing a multiplication between three or more matrices, like `m1 * m2 * m3`, the order of operations will be rearranged in order to reduce the total number of calculations needed.
 
 For example, then multiplying a `2x3`, `3x5` and `5x2` matrices, the `(3x5)*(5x2)` multiplication will be executed first, since it will reduce by `5` the number of dimensions.
 
-This is accomplished by the class `MultiplyMatrix`, which optimizes the order of operations when the first access is made. In particular the optimizations is done in these steps:
-1. Create a list containing the chain of matrix to multiply
-2. Until the list has more than one element
-     1. Find the pair of consecutive matrix `a` and `b` which, when multiplied, will reduce the dimension the most
-     2. Perform the multiplication `c = axb`
-     3. Substitute `a` and `b` with `c`. This will reduce the size of the chain by one
-3. The remaining matrix in the chain is the total product
+This is done inside the decorator class `MultiplyMatrix`. At the first access to the data, the following operations are performed:
+1.  The chain of multiplications is saved inside a vector
+2.  If the chain is only two matrices long, I can stop the optimization in order to keep accessing the data without using virtual operators
+3.  While the chain has more than one element:
+    1.  Find the pair of matrices in the chain that will be the most efficient to multiply
+    2.  Replacing the two matrices with a `MatrixData` that represents their multiplication
+4.  The last matrix in the chain is the result of the multiplication
 
-##Sum and TODOmultiplication between matrices of different types
+In the end, there will be an optimized operation tree, which can be accessed in an optimal order.
+
+##Sum between matrices of different types
 This library support adding matrices of different types. For example, a matrix of double is returned when adding a matrix of int and a matrix of doubles.
 ```c++
 StaticSizeMatrix<4, 3, int> m1;
 Matrix<double> m2(4, 3);
 const Matrix<double> sum = m1 + m2;
 ```
-This is accomplished using the //TODOkeyword `decltype`, which allows to know the type of the result of the sum of two types. For example, the signature of the addition is the following:
+This is accomplished using the `decltype` specifier, which allows to know the type of the result of the sum of two types. For example, the signature of the addition is the following:
 ```c++
-template<typename U>
-const Matrix<decltype(T() + U())> operator+(const Matrix<U> &another) const {
+template<typename U, class MD2>
+const Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>> operator+(const Matrix<U, MD2> &another) const {
     ...
 }
 ```
 As long as an empty constructor is provided for the types used in the matrices, and the addition between the two types is supported, this library will allow the sum of the two matrices.
 
-### Vectors and covectors
-Vectors and covectors are not specially handled. They are simply a `nx1` and `1xn` matrices. There are the methods `isVector()` and `isCovector()`. We chose to do this because they are simply a property of a matrix, and are not a characterization (e.g. a `1x1` matrix is both a vector and a covector).
-
 ## Testing
-In the `tests.cpp` file there is a main function that can be called to ensure that all tests are successful. Every major method is tested. 
+In the `tests.cpp`, `multiplicationTests.cpp`, `multiplicationTests2.cpp` files there is a main function that can be called to ensure that all tests are successful. Every major method is tested. 
 
 The library has been complied and tested with [CMake](https://cmake.org) under Windows 10.

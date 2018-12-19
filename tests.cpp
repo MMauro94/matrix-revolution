@@ -4,10 +4,10 @@
 #include "Matrix.h"
 #include "StaticSizeMatrix.h"
 
-template<typename T>
-void initializeCells(Matrix<T> &m, T rowMultiplier, T colMultiplier) {
-	for (unsigned int row = 0; row < m.rows(); ++row) {
-		for (unsigned int col = 0; col < m.columns(); ++col) {
+template<typename T, class MD>
+void initializeCells(Matrix<T, MD> &m, T rowMultiplier, T colMultiplier) {
+	for (unsigned row = 0; row < m.rows(); ++row) {
+		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
 		}
 	}
@@ -21,22 +21,22 @@ void assert(T expected, T actual) {
 	}
 }
 
-template<typename T>
-void assertAll(T expected, Matrix<T> m) {
-	for (unsigned int r = 0; r < m.rows(); ++r) {
-		for (unsigned int c = 0; c < m.columns(); ++c) {
+template<typename T, class MD>
+void assertAll(T expected, const Matrix<T, MD> &m) {
+	for (unsigned r = 0; r < m.rows(); ++r) {
+		for (unsigned c = 0; c < m.columns(); ++c) {
 			assert<T>(expected, m(r, c));
 		}
 	}
 }
 
-template<typename T>
-void assertEquals(Matrix<T> m1, Matrix<T> m2) {
+template<typename T, class MD1, class MD2>
+void assertEquals(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 	assert(m1.columns(), m2.columns());
 	assert(m1.rows(), m2.rows());
 
-	for (unsigned int r = 0; r < m1.rows(); ++r) {
-		for (unsigned int c = 0; c < m1.columns(); ++c) {
+	for (unsigned r = 0; r < m1.rows(); ++r) {
+		for (unsigned c = 0; c < m1.columns(); ++c) {
 			assert(m1(r, c), m2(r, c));
 		}
 	}
@@ -57,12 +57,35 @@ void testIterator(IT begin, IT end, int size) {
 	assert(0, k);
 }
 
-template<typename T>
-void test(Matrix<int> &m) {
+template<typename T, class MD>
+void dirtify(Matrix<T, MD> m) {
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 18;
+		}
+	}
+}
+
+template<typename T, class MD>
+void dirtify2(Matrix<T, MD> &m) {
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 18;
+		}
+	}
+}
+
+template<typename T, class MD>
+void test(Matrix<T, MD> &m) {
+	assertAll(0, m);
+	dirtify<T, MD>(m);//Testing deep copy
+	assertAll(0, m);
+	dirtify2<T, MD>(m);//Testing move
+	assertAll(18, m);
 	//TEST ASSIGNMENTS
 	for (int k = 0; k < 10; ++k) {
-		for (unsigned int r = 0; r < m.rows(); ++r) {
-			for (unsigned int c = 0; c < m.columns(); ++c) {
+		for (unsigned r = 0; r < m.rows(); ++r) {
+			for (unsigned c = 0; c < m.columns(); ++c) {
 				m(r, c) = k;
 				assert<T>(k, m(r, c));
 			}
@@ -71,8 +94,8 @@ void test(Matrix<int> &m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in row major order
 	int k = 0;
-	for (unsigned int r = 0; r < m.rows(); ++r) {
-		for (unsigned int c = 0; c < m.columns(); ++c) {
+	for (unsigned r = 0; r < m.rows(); ++r) {
+		for (unsigned c = 0; c < m.columns(); ++c) {
 			k++;
 			m(r, c) = k;
 			assert<T>(k, m(r, c));
@@ -85,8 +108,8 @@ void test(Matrix<int> &m) {
 
 	//ASSIGN VALUES FROM [1..columns*rows] in column major order
 	k = 0;
-	for (unsigned int c = 0; c < m.columns(); ++c) {
-		for (unsigned int r = 0; r < m.rows(); ++r) {
+	for (unsigned c = 0; c < m.columns(); ++c) {
+		for (unsigned r = 0; r < m.rows(); ++r) {
 			k++;
 			m(r, c) = k;
 			assert<T>(k, m(r, c));
@@ -118,10 +141,10 @@ void test(Matrix<int> &m) {
 		assert(m.rows(), d.columns());
 		assert(m.rows(), d.rows());
 
-		for (unsigned int r = 0; r < d.rows(); ++r) {
-			for (unsigned int c = 0; c < d.columns(); ++c) {
+		for (unsigned r = 0; r < d.rows(); ++r) {
+			for (unsigned c = 0; c < d.columns(); ++c) {
 				if (r == c) {
-					assert(m(r, 0), d(r, c));
+					assert<T>(m(r, 0), d(r, c));
 				} else {
 					assert<T>(0, d(r, c));
 				}
@@ -132,21 +155,26 @@ void test(Matrix<int> &m) {
 	//TEST SUBMATRIX
 	if (m.rows() >= 4 && m.columns() >= 4) {
 		auto sm = m.submatrix(2, 3, 2, 1);
-		assert(m(2, 3), sm(0, 0));
-		assert(m(3, 3), sm(1, 0));
+		assert<T>(m(2, 3), sm(0, 0));
+		assert<T>(m(3, 3), sm(1, 0));
 
 		sm(0, 0) = 123;
 		assert<T>(123, m(2, 3));
 	}
 
 	assertEquals(m, m.submatrix(0, 0, m.rows(), m.columns()));
+
+	//Cleaning the matrix
+	for (unsigned r = 0; r < m.rows(); r++) {
+		for (unsigned c = 0; c < m.columns(); c++) {
+			m(r, c) = 0;
+		}
+	}
 }
 
 
 void testMultiplicationAndAddition() {
 	StaticSizeMatrix<4, 3, int> m1;
-	const StaticSizeMatrix<4, 3, int> m1Plus10 = m1 + 10;
-	const StaticSizeMatrix<4, 3, int> m1Times5 = m1 * 5;
 	Matrix<double> m2(4, 3);
 	Matrix<int> m3(3, 5);
 	StaticSizeMatrix<5, 6, int> m4;
@@ -154,12 +182,11 @@ void testMultiplicationAndAddition() {
 	initializeCells<double>(m2, 11, 7);
 	initializeCells(m3, 7, 13);
 	initializeCells(m4, 8, 2);
-	const Matrix<double> sum1a = m1 + m2;
-	const Matrix<double> sum1b = m2 + m1;
-	const StaticSizeMatrix<4, 3, int> sum1c = m1 + m1;
-	const Matrix<int> multiplication1a = m1 * m3;
-	const Matrix<double> multiplication1b = m2 * m3.readOnlyCast<double>();
-	const Matrix<int> multiplication1c = m3 * m4;
+	auto sum1a = m1 + m2;
+	auto sum1b = m2 + m1;
+	auto sum1c = m1 + m1;
+	auto multiplication1c = m3 * m4;
+	const auto multiplication1a = m1 * m3;
 
 	//m1.print("%02d");
 	//m2.print("%02d");
@@ -167,15 +194,12 @@ void testMultiplicationAndAddition() {
 	//m3.print("%02d");
 	//m4.print("%02d");
 	//multiplication1c.print("%04d");
-	assert(m1.get<3, 2>() + 10, m1Plus10.get<3,2>());
-	assert(m1.get<3, 2>() * 5, m1Times5.get<3,2>());
-	assert(92, sum1c.get<3, 2>());
+	assert<int>(92, sum1c.get<3, 2>());
 	assert<double>(93, sum1a(3, 2));
 	assert<double>(93, sum1b(3, 2));
-	assertEquals(sum1a, sum1b);
-	assert(7327, multiplication1a(3, 4));
-	assert<double>(7178, multiplication1b(3, 4));
-	assert(5040, multiplication1c(2, 2));
+	//assertEquals(sum1a, sum1b);
+	assert<int>(7327, multiplication1a(3, 4));
+	assert<int>(5040, multiplication1c(2, 2));
 
 
 	StaticSizeMatrix<42, 7, int> m5;
@@ -184,41 +208,38 @@ void testMultiplicationAndAddition() {
 	initializeCells(m5, 12, 5);
 	initializeCells(m6, 7, 13);
 	initializeCells(m7, 3, 5);
-	const StaticSizeMatrix<42, 14, int> multiplication2 = m5 * m6 * m7;
-	assert(35015890, multiplication2.get<0, 1>());
-	assert(110059096, multiplication2.get<1, 10>());
-	assert(145932388, multiplication2.get<3, 4>());
+	auto multiplication2 = m5 * m6 * m7;
+	assert<int>(35015890, multiplication2.get<0, 1>());
+	assert<int>(110059096, multiplication2.get<1, 10>());
+	assert<int>(145932388, multiplication2.get<3, 4>());
 	//multiplication2.print("%04d");
 }
 
 
 void testBasicStuff() {
 	Matrix<int> sq(10, 10);
+	StaticSizeMatrix<10, 10, int> sqStatic;
 	StaticSizeMatrix<15, 20, int> static1;
 	StaticSizeMatrix<20, 3, int> static2;
 	Matrix<int> rect(5, 10);
 	Matrix<int> vector(10, 1);
+	auto multiplied1 = (sq * sq.transpose()).copy();
+	StaticSizeMatrix<5, 5, int> multiplied2 = (sqStatic * sqStatic.transpose()).diagonal().diagonalMatrix().submatrix<5, 5>(1, 1).copy();
 
-	StaticSizeMatrix<20, 15, int> transposed = static1.transpose();
-	StaticSizeMatrix<4, 5, int> submatrix = static1.submatrix<6, 7, 4, 5>();
-	StaticSizeMatrix<4, 5, int> submatrix2 = rect.submatrix<4, 5>(1, 4);
+	auto transposed = static1.transpose();
+	auto submatrix = static1.submatrix<6, 7, 4, 5>();
+	auto submatrix2 = rect.submatrix<4, 5>(1, 4);
 
 	int read = static1.get<7, 0>();
 	static1.get<1, 0>() = read;
-
-	assertAll(0, sq);
-	assertAll(0, static1);
-	assertAll(0, transposed);
-	assertAll(0, submatrix);
-	assertAll(0, submatrix2);
-	assertAll(0, rect);
-	assertAll(0, vector);
 
 	test<int>(submatrix);
 	test<int>(submatrix2);
 	test<int>(sq);
 	test<int>(static1);
 	test<int>(transposed);
+	test<int>(multiplied1);
+	test<int>(multiplied2);
 	test<int>(rect);
 	test<int>(vector);
 }
