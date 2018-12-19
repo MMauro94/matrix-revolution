@@ -179,7 +179,7 @@ This is done inside the decorator class `MultiplyMatrix`. At the first access to
 
 In the end, there will be an optimized operation tree, which can be accessed in an optimal order.
 
-## Sum between matrices of different types
+### Sum between matrices of different types
 This library support adding matrices of different types. For example, a matrix of double is returned when adding a matrix of int and a matrix of doubles.
 ```c++
 StaticSizeMatrix<4, 3, int> m1;
