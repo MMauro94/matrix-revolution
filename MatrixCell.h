@@ -16,9 +16,9 @@ class MatrixCell {
 
 		MatrixCell(MD &data, unsigned row, unsigned col) : row(row), col(col), data(data) {
 			if (row < 0 || row >= data.rows()) {
-				throw "Row out of bounds";
+				Utils::error("Row out of bounds");
 			} else if (col < 0 || col >= data.columns()) {
-				throw "Column out of bounds";
+				Utils::error("Column out of bounds");
 			}
 		}
 

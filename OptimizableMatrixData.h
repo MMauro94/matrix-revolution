@@ -53,8 +53,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 		void setOptimized(std::shared_ptr<O> optimized) const {
 			if (this->optimized != NULL) {
-				std::cout << "Matrix " + this->getDebugName(true) + " already optimized!\n";
-				throw "Matrix already optimized!";
+				Utils::error("Matrix already optimized!");
 			}
 			this->optimized = optimized;
 			this->optimized->optimize(GLOBAL_THREAD_POOL);
@@ -68,8 +67,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 			std::unique_lock<std::mutex> lock(this->optimization_mutex);
 			this->condition.wait(lock, [=] { return optimized != NULL; });
 			if (this->optimized == NULL) {
-				std::cout << "Not yet optimized\n";
-				throw "Not yet optimized";
+				Utils::error("Not yet optimized");
 			}
 		}
 

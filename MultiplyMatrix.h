@@ -34,7 +34,10 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 	public:
 
 		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(left, right, left.rows(),
-																										   right.columns(), "**") {
+																										   right.columns(), "*") {
+			if (this->columns() != another.rows()) {
+				Utils::error("Multiplication should be performed on compatible matrices");
+			}
 		}
 
 		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
@@ -122,14 +125,14 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 };
 
 /**
- * This class is used only internally on MultiplyMatrix, to keet the optimal operation tree.
+ * This class is used only internally on MultiplyMatrix, to keep the optimal operation tree.
  */
 template<typename T>
 class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *> {
 	public:
 		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
 				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *>(left, right, left->rows(),
-																								  right->columns(), "*") {
+																								  right->columns(), "**") {
 		}
 
 		//No copy constructor
@@ -151,14 +154,111 @@ class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T
 		void doOptimization(ThreadPool *threadPool) override {
 			this->left->optimize(threadPool);
 			this->right->optimize(threadPool);
+			threadPool->add([=] { multiply(threadPool); });
+		}
+
+	private:
+
+		std::vector<MatrixResizer<T, VectorMatrixData<T>>>
+		divideInBlocks(MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) {
+			//e.g. matrix is 202x302;
+			//numberOfGridRows = 3
+			// numberOfGridCols = 4
+			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret();
+			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
+			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
+			for (unsigned r = 0; r < numberOfGridRows; r++) {
+				for (unsigned c = 0; c < numberOfGridCols; c++) {
+					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
+					unsigned blockRowEnd = min(((r + 1) * rowsOfGrid), matrix->rows());//68, 136, 202
+					unsigned blockColStart = c * colsOfGrid;//0, 76, 152, 228
+					unsigned blockColEnd = min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
+					unsigned int blockRows = blockRowEnd - blockRowStart;
+					unsigned int blockCols = blockColEnd - blockColStart;
+					VectorMatrixData<T> block(blockRows, blockCols);
+					block.setDebugName(strcat(matrix->getDebugName(false), std::to_string(r) + "-" + std::to_string(c)));
+					for (unsigned rr = 0; rr < blockRows; rr++) {
+						for (unsigned cc = 0; cc < blockCols; cc++) {
+							block.set(rr, cc, matrix->virtualGet(blockRowStart + rr, blockColStart + cc));
+						}
+					}
+					//I wrap the matrix in a MatrixResizer to make sure every block is of the sme size
+					ret.emplace_back<MatrixResizer<T, VectorMatrixData<T>>>(block, rowsOfGrid, colsOfGrid);
+				}
+			}
+			return ret;
+		}
+
+		void multiply(ThreadPool *threadPool) {
+			std::cout << "Executing " + this->getDebugName(true) + "\n";
+
+			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+
+			unsigned optimalMultiplicationSize = 100;
+			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
+			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), optimalMultiplicationSize);//e.g. 3
+			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
+			unsigned numberOfGridColsA = Utils::ceilDiv(this->left->columns(), optimalMultiplicationSize);//e.g. 4
+			unsigned colsOfGridA = Utils::ceilDiv(this->left->columns(), numberOfGridColsA);//e.g. 76
+			//Now that I've decided the blocks of A, I can comute the blocks of B.
+			//For example, if B is 302x404, it will be divided in 4x5 blocks of size 76x81
+			unsigned numberOfGridRowsB = numberOfGridColsA;//4
+			unsigned rowsOfGridB = colsOfGridA;//76
+			unsigned numberOfGridColsB = Utils::ceilDiv(this->right->columns(), optimalMultiplicationSize);// e.g. 5
+			unsigned colsOfGridB = Utils::ceilDiv(this->right->columns(), numberOfGridColsB);//e.g. 81
+			//Now we divide the matrices in blocks
+			auto blocksOfA = this->divideInBlocks(this->left, numberOfGridRowsA, numberOfGridColsA);
+			auto blocksOfB = this->divideInBlocks(this->right, numberOfGridRowsB, numberOfGridColsB);
+			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
+
+			//Cose da fare:
+			//- Creare i blocchi di C
+			//-Unire i blocchi di C
+
+			std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
+			this->setOptimized(ret);
+		}
+};
+
+template<typename T>
+class BaseMultiplyMatrix
+		: public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>> {
+	public:
+		BaseMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
+				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>>(left,
+																																			  right,
+																																			  left->rows(),
+																																			  right->columns(),
+																																			  "***") {
+		}
+
+		//No copy constructor
+		BaseMultiplyMatrix(const BaseMultiplyMatrix<T> &another) = delete;
+
+		//No move constructor
+		BaseMultiplyMatrix(BaseMultiplyMatrix<T> &&another) noexcept = delete;
+
+
+	protected:
+
+		virtual const MatrixData<T> *getLeft() const {
+			return &(this->left);
+		}
+
+		virtual const MatrixData<T> *getRight() const {
+			return &(this->right);
+		}
+
+		void doOptimization(ThreadPool *threadPool) override {
 			threadPool->add([=] { doSerialOptimization(); });
 		}
 
 	private:
+
 		void doSerialOptimization() {
 			std::cout << "Executing " + this->getDebugName(true) + "\n";
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			for (unsigned int r = 0; r < ret->rows(); r++) {

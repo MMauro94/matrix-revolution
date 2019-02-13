@@ -16,21 +16,21 @@ void initializeCells(Matrix<int, MD> &m, const char *debugName, int rowMultiplie
 }
 
 int main() {
-	StaticSizeMatrix<2, 5, int> mA;
+	StaticSizeMatrix<400, 50, int> mA;
 	initializeCells(mA, "A", 12, 5);
-	StaticSizeMatrix<2, 5, int> mB;
+	StaticSizeMatrix<400, 50, int> mB;
 	initializeCells(mB, "B", 7, 13);
-	StaticSizeMatrix<5, 20, int> mC;
+	StaticSizeMatrix<50, 200, int> mC;
 	initializeCells(mC, "C", 3, 8);
-	StaticSizeMatrix<5, 20, int> mD;
+	StaticSizeMatrix<50, 200, int> mD;
 	initializeCells(mD, "D", 4, 7);
-	StaticSizeMatrix<20, 2, int> mE;
+	StaticSizeMatrix<200, 400, int> mE;
 	initializeCells(mE, "E", 8, 9);
-	StaticSizeMatrix<20, 2, int> mF;
+	StaticSizeMatrix<200, 400, int> mF;
 	initializeCells(mF, "F", 5, 11);
-	StaticSizeMatrix<2, 10, int> mG;
+	StaticSizeMatrix<400, 100, int> mG;
 	initializeCells(mG, "G", 54, 11);
-	StaticSizeMatrix<10, 2, int> mH;
+	StaticSizeMatrix<100, 400, int> mH;
 	initializeCells(mH, "H", 66, 11);
 
 	/*std::cout << "Matrix A" << std::endl;
@@ -62,7 +62,7 @@ int main() {
 
 	std::cout << std::endl << std::endl;
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;
-	multiplication.print("%2d");
+	//multiplication.print("%2d");
 
 	return 0;
 }

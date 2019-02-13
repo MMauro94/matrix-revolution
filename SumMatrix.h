@@ -21,6 +21,9 @@ class SumMatrix : public OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD
 
 		explicit SumMatrix(MD1 left, MD2 right) :
 				OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2>(left, right, left.rows(), left.columns(), "+") {
+			if (left.columns() != right.columns() || left.rows() != another.rows()) {
+				Utils::error("Addition should be performed on compatible matrices");
+			}
 		}
 
 		SumMatrix(const SumMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2>(another) {

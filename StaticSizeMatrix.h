@@ -23,9 +23,9 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 	protected:
 		explicit StaticSizeMatrix(MD &data) : Matrix(data) {
 			if (data.columns() != COLUMNS) {
-				throw "Invalid columns count";
+				Utils::error("Invalid columns count");
 			} else if (data.rows() != ROWS) {
-				throw "Invalid rows count";
+				Utils::error("Invalid rows count");
 			}
 		}
 
@@ -126,9 +126,6 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		template<typename U, class MD2>
 		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>
 		operator+(const Matrix<U, MD2> &another) const {
-			if (this->columns() != another.columns() || this->rows() != another.rows()) {
-				throw "Addetion should be performed on compatible matrices";
-			}
 			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
 					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
 		}

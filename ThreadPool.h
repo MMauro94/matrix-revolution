@@ -11,6 +11,7 @@
 #include <mutex>
 #include <functional>
 #include <deque>
+#include "Utils.h"
 
 class ThreadPool {
 	private:
@@ -37,6 +38,10 @@ class ThreadPool {
 		explicit ThreadPool(unsigned threadCount) : threadCount(threadCount) {
 		}
 
+		unsigned getThreadCount() const {
+			return this->threadCount;
+		}
+
 		void add(const std::function<void()> &runnable) {
 			{
 				std::unique_lock<std::mutex> lock(this->queue_mutex);
@@ -47,8 +52,7 @@ class ThreadPool {
 
 		ThreadPool *start() {
 			if (!this->threads.empty()) {
-				std::cout << "Pool already started" << std::endl;
-				throw "Illegal state!";
+				Utils::error("Pool already started!");
 			}
 			for (unsigned i = 0; i < this->threadCount; i++) {
 				this->threads.emplace_back([=] { loop(); });
