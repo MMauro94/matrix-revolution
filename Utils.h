@@ -11,7 +11,7 @@
 
 class Utils {
 	public :
-		static void error(std::string errorMessage) {
+		static void error(const std::string &errorMessage) {
 			std::cout << errorMessage << std::endl;
 			throw errorMessage;
 		}
@@ -19,7 +19,7 @@ class Utils {
 		static unsigned ceilDiv(unsigned a, unsigned b) {
 			return 1 + ((a - 1) / b);
 		}
-}
+
 };
 
 

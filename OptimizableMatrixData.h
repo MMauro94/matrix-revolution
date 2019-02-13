@@ -8,9 +8,6 @@
 #include <deque>
 #include "MatrixData.h"
 
-template<typename T>
-class OperationNodeMatrixData;
-
 ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(10))->start();
 
 template<typename T, class O, class MD1, class MD2>
@@ -18,7 +15,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 	protected:
 		MD1 left;
 		MD2 right;
-		const char *operandName;
+		const std::string wrapName;
 		mutable std::mutex optimization_mutex;
 		mutable std::condition_variable condition;
 	private:
@@ -27,21 +24,21 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 	public:
 
-		OptimizableMatrixData(MD1 left, MD2 right, unsigned int rows, unsigned int columns, const char *operandName) :
-				MatrixData<T>(rows, columns), left(left), right(right), operandName(operandName) {
+		OptimizableMatrixData(const std::string wrapName, MD1 left, MD2 right, unsigned int rows, unsigned int columns) :
+				MatrixData<T>(rows, columns), left(left), right(right), wrapName(wrapName) {
 		}
 
 		OptimizableMatrixData(const OptimizableMatrixData<T, O, MD1, MD2> &another) :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), operandName(another.operandName) {
+				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to copy
 		}
 
 		OptimizableMatrixData(OptimizableMatrixData<T, O, MD1, MD2> &&another) noexcept :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), operandName(another.operandName) {
+				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to move
 		}
 
-		void optimize(ThreadPool *threadPool) const {
+		void optimize(ThreadPool *threadPool) const override {
 			if (this->optimized == NULL) {
 				std::unique_lock<std::mutex> lock(this->optimization_mutex);
 				if (!this->isOptimizing) {
@@ -87,27 +84,26 @@ class OptimizableMatrixData : public MatrixData<T> {
 		OptimizableMatrixData<T, O, MD1, MD2> copy() const {
 			return OptimizableMatrixData<T, O, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
-
+/*
 		virtual std::string getDebugName(bool reversePolishNotation) const {
-			std::string l = this->getLeft()->getDebugName(false);
-			std::string r = this->getRight()->getDebugName(false);
+			std::string l = this->getLeft()->getDebugName();
+			std::string r = this->getRight()->getDebugName();
 			std::string on = this->operandName;
 			if (reversePolishNotation) {
 				return "(" + on + " (" + l + " " + r + ")";
 			} else {
 				return "(" + l + " " + on + " " + r + ")";
 			}
-		}
+		}*/
 
-		virtual void printDebugTree() const {
-			this->printDebugTree("", false);
-		}
-
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
+		virtual void printDebugTree(const std::string &prefix, bool isLeft) const override {
+			this->waitOptimized();
 			MatrixData::printDebugTree(prefix, isLeft);
-			// enter the next tree level - left and right branch
-			this->getLeft()->printDebugTree(prefix + (isLeft ? "|   " : "    "), true);
-			this->getRight()->printDebugTree(prefix + (isLeft ? "|   " : "    "), false);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optimized.get()});
+		};
+
+		virtual const std::string getDebugName() const override {
+			return this->wrapName;
 		}
 
 	protected:

@@ -53,12 +53,13 @@ int main() {
 
 	auto multiplication = ((mA + mB) * (mC + mD) * (mE + mF)) + (mG * mH);
 
+	multiplication.getData().print();
+
 	clock_t begin = clock();
 	int first = multiplication.getData().get(0, 0);
 	clock_t end = clock();
 	std::cout << "The first element is " << first << ", and it took " << double(end - begin) / CLOCKS_PER_SEC << " seconds" << std::endl;
 
-	multiplication.getData().printDebugTree();
 
 	std::cout << std::endl << std::endl;
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;

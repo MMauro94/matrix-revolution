@@ -15,44 +15,9 @@ class BaseSumMatrix;
  * @tparam T type of the data
  */
 template<typename T, class MD1, class MD2>
-class SumMatrix : public OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2> {
-
+class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 	public:
-
-		explicit SumMatrix(MD1 left, MD2 right) :
-				OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2>(left, right, left.rows(), left.columns(), "+") {
-			if (left.columns() != right.columns() || left.rows() != another.rows()) {
-				Utils::error("Addition should be performed on compatible matrices");
-			}
-		}
-
-		SumMatrix(const SumMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2>(another) {
-		}
-
-		SumMatrix(SumMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, BaseSumMatrix<T, MD1, MD2>, MD1, MD2>(another) {
-		}
-
-		void doOptimization(ThreadPool *threadPool) override {
-			//Optimizing is O(1), no need to use the threadPool
-			this->setOptimized(std::make_shared<BaseSumMatrix<T, MD1, MD2>>(this->left, this->right));
-		}
-
-		virtual const MatrixData<T> *getLeft() const {
-			return &(this->left);
-		}
-
-		virtual const MatrixData<T> *getRight() const {
-			return &(this->right);
-		}
-};
-
-template<typename T, class MD1, class MD2>
-class BaseSumMatrix : public MatrixData<T> {
-	private:
-		MD1 left;
-		MD2 right;
-	public:
-		BaseSumMatrix(MD1 left, MD2 right) : MatrixData<T>(left.rows(), left.columns()), left(left), right(right) {
+		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>("+", left, right, left.rows(), left.columns()) {
 		}
 
 		T get(unsigned row, unsigned col) const {
@@ -63,13 +28,37 @@ class BaseSumMatrix : public MatrixData<T> {
 			return this->get(row, col);
 		}
 
-		BaseSumMatrix<T, MD1, MD2> copy() const {
-			return BaseSumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		SumMatrix<T, MD1, MD2> copy() const {
+			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		}
+};
+
+/**
+ * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
+ * @tparam T type of the data
+ */
+template<typename T, class MD>
+class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
+	public:
+		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>("+", wrapped, wrapped[0].rows(), wrapped[0].columns()) {
 		}
 
-		void optimize(ThreadPool *threadPool) const override {
-			this->left.optimize(threadPool);
-			this->right.optimize(threadPool);
+		T get(unsigned row, unsigned col) const {
+			T ret = 0;
+			for (unsigned r = 0; r < this->rows(); r++) {
+				for (unsigned c = 0; c < this->columns(); c++) {
+					ret += this->get(r, c);
+				}
+			}
+			return ret;
+		}
+
+		T virtualGet(unsigned row, unsigned col) const override {
+			return this->get(row, col);
+		}
+
+		MultiSumMatrix<T, MD> copy() const {
+			return MultiSumMatrix<T, MD>(this->copyWrapped());
 		}
 };
 

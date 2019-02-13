@@ -14,6 +14,9 @@
 template<typename T>
 class VirtualMultiplyMatrix;
 
+template<typename T>
+class BaseMultiplyMatrix;
+
 /**
  * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
  * @tparam T type of the data
@@ -33,9 +36,9 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(left, right, left.rows(),
-																										   right.columns(), "*") {
-			if (this->columns() != another.rows()) {
+		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>("*", left, right, left.rows(),
+																										   right.columns()) {
+			if (left.columns() != right.rows()) {
 				Utils::error("Multiplication should be performed on compatible matrices");
 			}
 		}
@@ -52,15 +55,6 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 
 		virtual const MatrixData<T> *getRight() const {
 			return &(this->right);
-		}
-
-		virtual void printDebugTree() const {
-			OptimizableMatrixData::printDebugTree();
-		}
-
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
-			this->waitOptimized();
-			return this->optOptimized()->printDebugTree(prefix, isLeft);
 		}
 
 	protected:
@@ -128,18 +122,23 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
  * This class is used only internally on MultiplyMatrix, to keep the optimal operation tree.
  */
 template<typename T>
-class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *> {
+class VirtualMultiplyMatrix
+		: public OptimizableMatrixData<T, MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>, MatrixData<T> *, MatrixData<T> *> {
 	public:
 		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *>(left, right, left->rows(),
-																								  right->columns(), "**") {
+				: OptimizableMatrixData<T, MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>, MatrixData<T> *, MatrixData<T> *>(
+				"**",
+				left,
+				right,
+				left->rows(),
+				right->columns()) {
 		}
 
 		//No copy constructor
-		VirtualMultiplyMatrix(const VirtualMultiplyMatrix<T> &another) = delete;
+		//VirtualMultiplyMatrix(const VirtualMultiplyMatrix<T> &another) = delete;
 
 		//No move constructor
-		VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
+		//VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
 
 
 	protected:
@@ -164,33 +163,34 @@ class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T
 			//e.g. matrix is 202x302;
 			//numberOfGridRows = 3
 			// numberOfGridCols = 4
-			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret();
+			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret;
 			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
 			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
 			for (unsigned r = 0; r < numberOfGridRows; r++) {
 				for (unsigned c = 0; c < numberOfGridCols; c++) {
 					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
-					unsigned blockRowEnd = min(((r + 1) * rowsOfGrid), matrix->rows());//68, 136, 202
+					unsigned blockRowEnd = std::min(((r + 1) * rowsOfGrid), matrix->rows());//68, 136, 202
 					unsigned blockColStart = c * colsOfGrid;//0, 76, 152, 228
-					unsigned blockColEnd = min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
+					unsigned blockColEnd = std::min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
 					unsigned int blockRows = blockRowEnd - blockRowStart;
 					unsigned int blockCols = blockColEnd - blockColStart;
 					VectorMatrixData<T> block(blockRows, blockCols);
-					block.setDebugName(strcat(matrix->getDebugName(false), std::to_string(r) + "-" + std::to_string(c)));
+					const std::string debugName = matrix->getDebugName() + std::to_string(r) + "-" + std::to_string(c);
+					block.setDebugName(debugName.c_str());
 					for (unsigned rr = 0; rr < blockRows; rr++) {
 						for (unsigned cc = 0; cc < blockCols; cc++) {
 							block.set(rr, cc, matrix->virtualGet(blockRowStart + rr, blockColStart + cc));
 						}
 					}
 					//I wrap the matrix in a MatrixResizer to make sure every block is of the sme size
-					ret.emplace_back<MatrixResizer<T, VectorMatrixData<T>>>(block, rowsOfGrid, colsOfGrid);
+					ret.emplace_back(block, rowsOfGrid, colsOfGrid);
 				}
 			}
 			return ret;
 		}
 
 		void multiply(ThreadPool *threadPool) {
-			std::cout << "Executing " + this->getDebugName(true) + "\n";
+			std::cout << "Executing " + this->getDebugName() + "\n";
 
 			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
@@ -212,11 +212,25 @@ class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T
 			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
 
 			//Cose da fare:
-			//- Creare i blocchi di C
+			//-Creare i blocchi di C
 			//-Unire i blocchi di C
+			std::deque<MultiSumMatrix<T, BaseMultiplyMatrix<T>>> resultingBlocks;
+			for (unsigned r = 0; r < numberOfGridRowsA; r++) {
+				for (unsigned c = 0; c < numberOfGridColsB; c++) {
+					std::deque<BaseMultiplyMatrix<T>> toMultiply;
+					for (unsigned k = 0; k < numberOfGridRowsB; k++) {
+						toMultiply.emplace_back(blocksOfA[r * numberOfGridColsA + k], blocksOfB[k * numberOfGridColsB + c]);
+					}
+					resultingBlocks.emplace_back(toMultiply);
+				}
+			}
 
-			std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
-			this->setOptimized(ret);
+			std::cout << "Executed " + this->getDebugName() + "!!!\n";
+			MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>> multiplication(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
+																							numberOfGridColsB * colsOfGridB);
+			this->setOptimized(
+					std::make_shared<MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>>(multiplication, this->rows(),
+																														 this->columns()));
 		}
 };
 
@@ -224,19 +238,19 @@ template<typename T>
 class BaseMultiplyMatrix
 		: public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>> {
 	public:
-		BaseMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>>(left,
+		BaseMultiplyMatrix(MatrixResizer<T, VectorMatrixData<T>> left, MatrixResizer<T, VectorMatrixData<T>> right)
+				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>>("***",
+																																			  left,
 																																			  right,
-																																			  left->rows(),
-																																			  right->columns(),
-																																			  "***") {
+																																			  left.rows(),
+																																			  right.columns()) {
 		}
 
 		//No copy constructor
-		BaseMultiplyMatrix(const BaseMultiplyMatrix<T> &another) = delete;
+		//BaseMultiplyMatrix(const BaseMultiplyMatrix<T> &another) = delete;
 
 		//No move constructor
-		BaseMultiplyMatrix(BaseMultiplyMatrix<T> &&another) noexcept = delete;
+		//BaseMultiplyMatrix(BaseMultiplyMatrix<T> &&another) noexcept = delete;
 
 
 	protected:
@@ -256,22 +270,22 @@ class BaseMultiplyMatrix
 	private:
 
 		void doSerialOptimization() {
-			std::cout << "Executing " + this->getDebugName(true) + "\n";
+			std::cout << "Executing " + this->getDebugName() + "\n";
 
 			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
-			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
+			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left.rows(), this->right.columns());
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
 					T cell = 0;
-					for (unsigned j = 0; j < this->left->columns(); j++) {
-						cell += this->left->virtualGet(r, j) * this->right->virtualGet(j, c);
+					for (unsigned j = 0; j < this->left.columns(); j++) {
+						cell += this->left.get(r, j) * this->right.get(j, c);
 					}
 					ret->set(r, c, cell);
 				}
 			}
 
-			std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
+			std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			this->setOptimized(ret);
 		}
 };
