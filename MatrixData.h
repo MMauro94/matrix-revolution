@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
+#include "ThreadPool.h"
 
 template<typename T>
 class VectorMatrixData;
@@ -21,6 +22,7 @@ class MatrixData {
 
 	private:
 		unsigned _rows, _columns;
+		const char *debugName = nullptr;
 
 		template<typename U, class MD1, class MD2> friend
 		class MultiplyMatrix;
@@ -39,6 +41,18 @@ class MatrixData {
 
 		virtual ~MatrixData() = default;
 
+		void setDebugName(const char *debugName) {
+			this->debugName = debugName;
+		}
+
+		virtual std::string getDebugName(bool reversePolishNotation) const {
+			if (this->debugName == NULL) {
+				std::cout << "Debug name not set!" << std::endl;
+				throw "Debug name not set";
+			}
+			return this->debugName;
+		}
+
 		/**
 		 * @return number of columns
 		 */
@@ -53,9 +67,16 @@ class MatrixData {
 			return this->_rows;
 		}
 
-
 		virtual T virtualGet(unsigned row, unsigned col) const = 0;
 
+		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
+			std::cout << prefix + (isLeft ? "|--" : "\\--") + this->getDebugName(true) + "\n";
+		}
+
+		virtual void waitOptimized() const {}
+
+		virtual void optimize(ThreadPool *threadPool) const {
+		}
 };
 
 /**
@@ -240,37 +261,6 @@ class DiagonalMatrixMD : public MatrixData<T> {
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
-		}
-};
-
-
-/**
- * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
- * @tparam T type of the data
- */
-template<typename T, class MD1, class MD2>
-class SumMatrix : public MatrixData<T> {
-
-	private:
-		MD1 left;
-		MD2 right;
-
-	public:
-
-		explicit SumMatrix(MD1 left, MD2 right) :
-				MatrixData<T>(left.rows(), right.columns()), left(left), right(right) {
-		}
-
-		T get(unsigned row, unsigned col) const {
-			return this->left.get(row, col) + this->right.get(row, col);
-		}
-
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
-
-		SumMatrix<T, MD1, MD2> copy() const {
-			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
 };
 

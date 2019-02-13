@@ -6,7 +6,10 @@
 #define MATRIX_MULTIPLYMATRIX_H
 
 #include "MatrixData.h"
+#include "OptimizableMatrixData.h"
 #include <deque>
+#include <chrono>
+#include <thread>
 
 template<typename T>
 class VirtualMultiplyMatrix;
@@ -16,113 +19,105 @@ class VirtualMultiplyMatrix;
  * @tparam T type of the data
  */
 template<typename T, class MD1, class MD2>
-class MultiplyMatrix : public MatrixData<T> {
+class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2> {
 
 	private:
-		MD1 left;
-		MD2 right;
-		mutable VirtualMultiplyMatrix<T> *optimizedMatrix = NULL;
-		mutable bool optimized = false;
 		/**
 		 * Needed to keep the pointers!
 		 * Using a deque, since it allows members without copy/move constructors
 		 */
-		mutable std::deque<VirtualMultiplyMatrix<T>> computedMultiplications;
+		mutable std::deque<VirtualMultiplyMatrix<T>> nodeReferences;
 
 		template<typename U, class MD3, class MD4> friend
 		class MultiplyMatrix;
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) :
-				MatrixData<T>(left.rows(), right.columns()), left(left), right(right) {
+		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(left, right, left.rows(),
+																										   right.columns(), "**") {
 		}
 
-		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right) {
-			//The cached data is not passed around, since it will be too difficult to copy
+		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
 		}
 
-		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right) {
-			//The cached data is not passed around, since it will be too difficult to copy
+		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
 		}
 
-		T get(unsigned int row, unsigned int col) const {
-			this->optimizeIfNecessary();
-			if (this->optimizedMatrix == NULL) {
-				T ret = 0;
-				for (unsigned j = 0; j < this->left.columns(); j++) {
-					ret += this->left.get(row, j) * this->right.virtualGet(j, col);
-				}
-				return ret;
-			} else {
-				return this->optimizedMatrix->get(row, col);
-			}
+		virtual const MatrixData<T> *getLeft() const {
+			return &(this->left);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
+		virtual const MatrixData<T> *getRight() const {
+			return &(this->right);
 		}
 
-		MultiplyMatrix<T, MD1, MD2> copy() const {
-			return MultiplyMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		virtual void printDebugTree() const {
+			OptimizableMatrixData::printDebugTree();
 		}
 
-	private:
-
-		/**
-		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
-		 */
-		void optimizeIfNecessary() const {
-			if (!this->optimized) {
-				//Step 1: getting the chain of multiplications to perform
-				std::vector<MatrixData<T> *> multiplicationChain;
-				const_cast<MultiplyMatrix<T, MD1, MD2> *>
-				(this)->addToMultiplicationChain(multiplicationChain);
-
-				//Step 2: If I multiply only two matrices, no optimization is performed, since it will be faster to just access the data
-				if (multiplicationChain.size() > 2) {
-					//Step 3: execute the multiplications in an efficient order, until a single matrix is left
-					while (multiplicationChain.size() > 1) {
-						//Step 3a: find the multiplication that reduces the multiplication the most
-						unsigned bestIndex = 0;
-						for (unsigned i = 0; i < multiplicationChain.size() - 1; i++) {
-							if (multiplicationChain[i]->columns() > multiplicationChain[bestIndex]->columns()) {
-								bestIndex = i;
-							}
-						}
-						MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
-						MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
-
-						//Step 3b: replacing the two matrices in the chain with the computed product
-						//Creating the multiplication inside computedMultiplications
-						computedMultiplications.emplace_back(leftMatrix, rightMatrix);
-						//Replacing the two matrices with the multiplication
-						multiplicationChain.erase(multiplicationChain.begin() + bestIndex + 1);
-						multiplicationChain[bestIndex] = &computedMultiplications.back();
-					}
-
-					//Step 4: the last item in the chain is the multiplication result.
-					// It is a VirtualMultiplyMatrix, since it comes from computeMultiplication().
-					this->optimizedMatrix = static_cast<VirtualMultiplyMatrix<T> *>(multiplicationChain[0]);
-				}
-				this->optimized = true;
-			}
+		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
+			this->waitOptimized();
+			return this->optOptimized()->printDebugTree(prefix, isLeft);
 		}
 
 	protected:
 
 		/**
+		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
+		 */
+		void doOptimization(ThreadPool *threadPool) override {
+			threadPool->add([=] {
+				doSerialOptimization();
+			});
+		}
+
+		/**
 		 * Adds it child to the multiplication chain
 		 */
 		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
-			if (this->optimizedMatrix != NULL) {
-				multiplicationChain.push_back(this->optimizedMatrix);
+			if (this->optOptimized() != NULL) {
+				multiplicationChain.push_back(this->optOptimized());
 			} else {
 				this->left.addToMultiplicationChain(multiplicationChain);
 				this->right.addToMultiplicationChain(multiplicationChain);
 			};
+		}
+
+	private:
+
+		void doSerialOptimization() {
+			//std::cout << "Executing " + this->getDebugName(true) + "\n";
+
+
+			//Step 1: getting the chain of multiplications to perform
+			std::vector<MatrixData<T> *> multiplicationChain;
+			addToMultiplicationChain(multiplicationChain);
+			//Step 3: execute the multiplications in an efficient order, until a single matrix is left
+			while (multiplicationChain.size() > 1) {
+				//Step 3a: find the multiplication that reduces the multiplication the most
+				unsigned bestIndex = 0;
+				for (unsigned i = 0; i < multiplicationChain.size() - 1; i++) {
+					if (multiplicationChain[i]->columns() > multiplicationChain[bestIndex]->columns()) {
+						bestIndex = i;
+					}
+				}
+				MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
+				MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
+
+				//Step 3b: replacing the two matrices in the chain with the computed product
+				//Creating the multiplication inside nodeReferences
+				nodeReferences.emplace_back(leftMatrix, rightMatrix);
+				//Replacing the two matrices with the multiplication
+				multiplicationChain.erase(multiplicationChain.begin() + bestIndex + 1);
+				multiplicationChain[bestIndex] = &nodeReferences.back();
+			}
+
+			//Step 4: the last item in the chain is the multiplication result.
+			// It is a VirtualMultiplyMatrix, since it comes from nodeReferences.
+			VirtualMultiplyMatrix<T> *optimized = static_cast<VirtualMultiplyMatrix<T> *>(multiplicationChain[0]);
+
+			//std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
+			setOptimized(std::shared_ptr<VirtualMultiplyMatrix<T>>(optimized));
 		}
 };
 
@@ -130,18 +125,11 @@ class MultiplyMatrix : public MatrixData<T> {
  * This class is used only internally on MultiplyMatrix, to keet the optimal operation tree.
  */
 template<typename T>
-class VirtualMultiplyMatrix : public MatrixData<T> {
-
-	private:
-		MatrixData<T> *left;
-		MatrixData<T> *right;
-		mutable std::unique_ptr<VectorMatrixData<T>> optimizedMatrix = NULL;
-		mutable bool optimized = false;
-
+class VirtualMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *> {
 	public:
-
-		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right) :
-				MatrixData<T>(left->rows(), right->columns()), left(left), right(right) {
+		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
+				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixData<T> *, MatrixData<T> *>(left, right, left->rows(),
+																								  right->columns(), "*") {
 		}
 
 		//No copy constructor
@@ -150,40 +138,41 @@ class VirtualMultiplyMatrix : public MatrixData<T> {
 		//No move constructor
 		VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
 
-		/**
-		 * The first time this matrix is accessed, the date is kept in a VectorMatrixData
-		 */
-		T get(unsigned int row, unsigned int col) const {
-			this->optimizeIfNecessary();
-			return this->optimizedMatrix->get(row, col);
+
+	protected:
+		virtual const MatrixData<T> *getLeft() const {
+			return this->left;
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
+		virtual const MatrixData<T> *getRight() const {
+			return this->right;
+		}
+
+		void doOptimization(ThreadPool *threadPool) override {
+			this->left->optimize(threadPool);
+			this->right->optimize(threadPool);
+			threadPool->add([=] { doSerialOptimization(); });
 		}
 
 	private:
+		void doSerialOptimization() {
+			std::cout << "Executing " + this->getDebugName(true) + "\n";
 
-		template<typename U>
-		static std::unique_ptr<VectorMatrixData<U>> computeMultiplication(MatrixData<U> *left, MatrixData<U> *right) {
-			std::unique_ptr<VectorMatrixData<U>> ret = std::make_unique<VectorMatrixData<U>>(left->rows(), right->columns());
+			std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+
+			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
-					U cell = 0;
-					for (unsigned j = 0; j < left->columns(); j++) {
-						cell += left->virtualGet(r, j) * right->virtualGet(j, c);
+					T cell = 0;
+					for (unsigned j = 0; j < this->left->columns(); j++) {
+						cell += this->left->virtualGet(r, j) * this->right->virtualGet(j, c);
 					}
 					ret->set(r, c, cell);
 				}
 			}
-			return ret;
-		}
 
-		void optimizeIfNecessary() const {
-			if (!this->optimized) {
-				this->optimizedMatrix = computeMultiplication(this->left, this->right);
-				this->optimized = true;
-			}
+			std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
+			this->setOptimized(ret);
 		}
 };
 

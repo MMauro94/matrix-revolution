@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include "MatrixData.h"
+#include "SumMatrix.h"
 #include "MultiplyMatrix.h"
 #include "MatrixIterator.h"
 #include "MatrixCell.h"
@@ -52,6 +53,14 @@ class Matrix {
 		 * @param other the other matrix
 		 */
 		Matrix(Matrix<T, MD> &&other) noexcept = default;
+
+		void setDebugName(const char *debugName) {
+			this->data.setDebugName(debugName);
+		}
+
+		MD &getData() {
+			return this->data;
+		}
 
 		const T operator()(unsigned row, unsigned col) const {
 			if (row < 0 || row >= this->rows()) {
