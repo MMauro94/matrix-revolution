@@ -49,14 +49,6 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
 		}
 
-		virtual const MatrixData<T> *getLeft() const {
-			return &(this->left);
-		}
-
-		virtual const MatrixData<T> *getRight() const {
-			return &(this->right);
-		}
-
 	protected:
 
 		/**
@@ -135,20 +127,13 @@ class VirtualMultiplyMatrix
 		}
 
 		//No copy constructor
-		//VirtualMultiplyMatrix(const VirtualMultiplyMatrix<T> &another) = delete;
+		VirtualMultiplyMatrix(const VirtualMultiplyMatrix<T> &another) = delete;
 
 		//No move constructor
-		//VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
+		VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
 
 
 	protected:
-		virtual const MatrixData<T> *getLeft() const {
-			return this->left;
-		}
-
-		virtual const MatrixData<T> *getRight() const {
-			return this->right;
-		}
 
 		void doOptimization(ThreadPool *threadPool) override {
 			this->left->optimize(threadPool);
@@ -163,9 +148,14 @@ class VirtualMultiplyMatrix
 			//e.g. matrix is 202x302;
 			//numberOfGridRows = 3
 			// numberOfGridCols = 4
-			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret;
 			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
 			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
+			/*std::cout << "Matrix size = " + std::to_string(matrix->rows()) + "x" + std::to_string(matrix->columns()) + ";\n" +
+						 "-numberOfGridRows = " + std::to_string(numberOfGridRows) + "\n" +
+						 "-numberOfGridCols = " + std::to_string(numberOfGridCols) + "\n" +
+						 "-rowsOfGrid = " + std::to_string(rowsOfGrid) + "\n" +
+						 "-colsOfGrid = " + std::to_string(colsOfGrid) + "\n";*/
+			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret;
 			for (unsigned r = 0; r < numberOfGridRows; r++) {
 				for (unsigned c = 0; c < numberOfGridCols; c++) {
 					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
@@ -174,11 +164,22 @@ class VirtualMultiplyMatrix
 					unsigned blockColEnd = std::min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
 					unsigned int blockRows = blockRowEnd - blockRowStart;
 					unsigned int blockCols = blockColEnd - blockColStart;
+					/*std::cout << "--Creating block " + std::to_string(r) + "-" + std::to_string(c) + " of size " + std::to_string(rowsOfGrid) + "x" +
+								 std::to_string(colsOfGrid) + "\n" +
+								 "---blockRowStart=" + std::to_string(blockRowStart) + "\n" +
+								 "---blockRowEnd=" + std::to_string(blockRowEnd) + "\n" +
+								 "---blockColStart=" + std::to_string(blockColStart) + "\n" +
+								 "---blockColEnd=" + std::to_string(blockColEnd) + "\n" +
+								 "---blockRows=" + std::to_string(blockRows) + "\n" +
+								 "---blockCols=" + std::to_string(blockCols) + "\n";*/
+
 					VectorMatrixData<T> block(blockRows, blockCols);
-					const std::string debugName = matrix->getDebugName() + std::to_string(r) + "-" + std::to_string(c);
+					const std::string debugName = matrix->getDebugName() + "[" + std::to_string(r) + "-" + std::to_string(c) + "]";
+					//std::cout << debugName + "\n"; TODO: set a debug name that doesn't get destroyed
 					block.setDebugName(debugName.c_str());
 					for (unsigned rr = 0; rr < blockRows; rr++) {
 						for (unsigned cc = 0; cc < blockCols; cc++) {
+							//TODO: use concrete get()
 							block.set(rr, cc, matrix->virtualGet(blockRowStart + rr, blockColStart + cc));
 						}
 					}
@@ -190,7 +191,7 @@ class VirtualMultiplyMatrix
 		}
 
 		void multiply(ThreadPool *threadPool) {
-			std::cout << "Executing " + this->getDebugName() + "\n";
+			//std::cout << "Executing " + this->getDebugName() + "\n";
 
 			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
@@ -209,6 +210,7 @@ class VirtualMultiplyMatrix
 			//Now we divide the matrices in blocks
 			auto blocksOfA = this->divideInBlocks(this->left, numberOfGridRowsA, numberOfGridColsA);
 			auto blocksOfB = this->divideInBlocks(this->right, numberOfGridRowsB, numberOfGridColsB);
+			//std::cout << "blocksOfA = " + std::to_string(blocksOfA.size()) + "; blocksOfB = " + std::to_string(blocksOfB.size()) + "\n";
 			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
 
 			//Cose da fare:
@@ -225,12 +227,13 @@ class VirtualMultiplyMatrix
 				}
 			}
 
-			std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>> multiplication(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
 																							numberOfGridColsB * colsOfGridB);
-			this->setOptimized(
-					std::make_shared<MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>>(multiplication, this->rows(),
-																														 this->columns()));
+			auto optimied = std::make_shared<MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>>(multiplication,
+																																 this->rows(),
+																																 this->columns());
+			this->setOptimized(optimied);
+			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 		}
 };
 
@@ -255,37 +258,39 @@ class BaseMultiplyMatrix
 
 	protected:
 
-		virtual const MatrixData<T> *getLeft() const {
-			return &(this->left);
-		}
-
-		virtual const MatrixData<T> *getRight() const {
-			return &(this->right);
-		}
-
 		void doOptimization(ThreadPool *threadPool) override {
 			threadPool->add([=] { doSerialOptimization(); });
 		}
 
 	private:
 
-		void doSerialOptimization() {
-			std::cout << "Executing " + this->getDebugName() + "\n";
 
-			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+			//I print the unoptimized tree, since the optimized one is boring
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->left, &this->right}, false);
+		};
+
+
+		void doSerialOptimization() {
+			/*std::cout << "Executing " + this->getDebugName() +
+						 std::to_string(this->left.rows()) + "x" + std::to_string(this->left.columns()) + " * " +
+						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";*/
+			//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left.rows(), this->right.columns());
+			ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
-					T cell = 0;
+					T sum = 0;
 					for (unsigned j = 0; j < this->left.columns(); j++) {
-						cell += this->left.get(r, j) * this->right.get(j, c);
+						sum += this->left.get(r, j) * this->right.get(j, c);
 					}
-					ret->set(r, c, cell);
+					ret->set(r, c, sum);
 				}
 			}
 
-			std::cout << "Executed " + this->getDebugName() + "!!!\n";
+			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			this->setOptimized(ret);
 		}
 };

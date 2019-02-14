@@ -45,10 +45,8 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 
 		T get(unsigned row, unsigned col) const {
 			T ret = 0;
-			for (unsigned r = 0; r < this->rows(); r++) {
-				for (unsigned c = 0; c < this->columns(); c++) {
-					ret += this->get(r, c);
-				}
+			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
+				ret += it->get(row, col);
 			}
 			return ret;
 		}

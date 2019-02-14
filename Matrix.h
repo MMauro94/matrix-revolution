@@ -54,10 +54,6 @@ class Matrix {
 		 */
 		Matrix(Matrix<T, MD> &&other) noexcept = default;
 
-		void setDebugName(const char *debugName) {
-			this->data.setDebugName(debugName);
-		}
-
 		MD &getData() {
 			return this->data;
 		}

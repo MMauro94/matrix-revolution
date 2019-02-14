@@ -84,22 +84,11 @@ class OptimizableMatrixData : public MatrixData<T> {
 		OptimizableMatrixData<T, O, MD1, MD2> copy() const {
 			return OptimizableMatrixData<T, O, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
-/*
-		virtual std::string getDebugName(bool reversePolishNotation) const {
-			std::string l = this->getLeft()->getDebugName();
-			std::string r = this->getRight()->getDebugName();
-			std::string on = this->operandName;
-			if (reversePolishNotation) {
-				return "(" + on + " (" + l + " " + r + ")";
-			} else {
-				return "(" + l + " " + on + " " + r + ")";
-			}
-		}*/
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const override {
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
 			this->waitOptimized();
-			MatrixData::printDebugTree(prefix, isLeft);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optimized.get()});
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optimized.get()}, std::is_same<MD1, MatrixData<T> *>::value);
 		};
 
 		virtual const std::string getDebugName() const override {
@@ -112,10 +101,6 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		virtual void doOptimization(ThreadPool *threadPool) = 0;
-
-		virtual const MatrixData<T> *getLeft() const = 0;
-
-		virtual const MatrixData<T> *getRight() const = 0;
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H

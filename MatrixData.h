@@ -61,21 +61,21 @@ class MatrixData {
 		virtual void optimize(ThreadPool *threadPool) const {
 		}
 
-		virtual void print() const {
-			this->printDebugTree("", false);
+		virtual void printTree() const {
+			this->printDebugTree("", false, false);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
-			std::cout << prefix + (isLeft ? "|--" : "\\--") + this->getDebugName() + "\n";
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
+			std::cout << prefix + (isLeft ? "|" : "\\") + (hasVirtualBarrier ? "!-" : "--") + this->getDebugName() + "\n";
 		};
 
 		virtual const std::string getDebugName() const = 0;
 
 		static void
-		printDebugChildrenTree(const std::string &prefix, bool isLeft, std::vector<const MatrixData<T> *> children) {
+		printDebugChildrenTree(const std::string &prefix, bool isLeft, std::vector<const MatrixData<T> *> children, bool hasVirtualBarrier) {
 			// enter the next tree level - left and right branch
 			for (auto it = children.begin(); it < children.end(); it++) {
-				(*it)->printDebugTree(prefix + (isLeft ? "|   " : "    "), (it + 1) < children.end());
+				(*it)->printDebugTree(prefix + (isLeft ? "|   " : "    "), (it + 1) < children.end(), hasVirtualBarrier);
 			}
 		}
 };
@@ -123,10 +123,10 @@ class VectorMatrixData : public MatrixData<T> {
 
 		const std::string getDebugName() const override {
 			if (this->debugName == NULL) {
-				std::cout << "Debug name not set!" << std::endl;
-				Utils::error("Debug name not set");
+				return "?";
+			} else {
+				return this->debugName;
 			}
-			return this->debugName;
 		}
 
 		template<class MD>
@@ -165,9 +165,9 @@ class SingleMatrixWrapper : public MatrixData<T> {
 			this->wrapped.optimize(threadPool);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const override {
-			MatrixData::printDebugTree(prefix, isLeft);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->wrapped});
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->wrapped}, false);
 		};
 
 		virtual const std::string getDebugName() const override {
@@ -202,12 +202,12 @@ class BiMatrixWrapper : public MatrixData<T> {
 			this->right.optimize(threadPool);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
-			MatrixData::printDebugTree(prefix, isLeft);
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			std::vector<const MatrixData<T> *> children;
 			children.push_back(&this->left);
 			children.push_back(&this->right);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, children);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, children, false);
 		};
 
 		virtual const std::string getDebugName() const override {
@@ -236,7 +236,7 @@ class MultiMatrixWrapper : public MatrixData<T> {
 	public:
 
 		MultiMatrixWrapper(std::string wrapName, std::deque<MD> wrapped, unsigned rows, unsigned columns) : MatrixData<T>(rows, columns),
-																											 wrapped(wrapped), wrapName(wrapName) {
+																											wrapped(wrapped), wrapName(wrapName) {
 		}
 
 		virtual void waitOptimized() const {
@@ -251,13 +251,13 @@ class MultiMatrixWrapper : public MatrixData<T> {
 			}
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
-			MatrixData::printDebugTree(prefix, isLeft);
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			std::vector<const MatrixData<T> *> pointers;
 			for (auto it = this->wrapped.begin(); it < wrapped.end(); it++) {
 				pointers.push_back(&(*it));
 			}
-			MatrixData::printDebugChildrenTree(prefix, isLeft, pointers);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, pointers, false);
 		};
 
 		virtual const std::string getDebugName() const override {
