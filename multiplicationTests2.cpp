@@ -6,7 +6,7 @@
 #include "StaticSizeMatrix.h"
 
 template<class MD>
-void initializeCells(Matrix<long, MD> &m, const char *debugName, long rowMultiplier, long colMultiplier) {
+void initializeCells(Matrix<long, MD> &m, std::string debugName, long rowMultiplier, long colMultiplier) {
 	m.getData().setDebugName(debugName);
 	for (unsigned row = 0; row < m.rows(); ++row) {
 		for (unsigned col = 0; col < m.columns(); ++col) {
@@ -28,9 +28,9 @@ int main() {
 	initializeCells(mE, "E", 8, 9);
 	StaticSizeMatrix<200, 400, long> mF;
 	initializeCells(mF, "F", 5, 11);
-	StaticSizeMatrix<400, 10, long> mG;
+	StaticSizeMatrix<400, 101, long> mG;
 	initializeCells(mG, "G", 54, 11);
-	StaticSizeMatrix<10, 400, long> mH;
+	StaticSizeMatrix<101, 400, long> mH;
 	initializeCells(mH, "H", 66, 11);
 
 	/*std::cout << "Matrix A" << std::endl;

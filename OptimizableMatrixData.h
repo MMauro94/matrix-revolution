@@ -8,13 +8,11 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(10))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
 
-template<typename T, class O, class MD1, class MD2>
+template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
 	protected:
-		MD1 left;
-		MD2 right;
 		const std::string wrapName;
 		mutable std::mutex optimization_mutex;
 		mutable std::condition_variable condition;
@@ -22,19 +20,20 @@ class OptimizableMatrixData : public MatrixData<T> {
 		mutable std::shared_ptr<O> optimized = NULL;
 		mutable bool isOptimizing = false;
 
+
 	public:
 
-		OptimizableMatrixData(const std::string wrapName, MD1 left, MD2 right, unsigned int rows, unsigned int columns) :
-				MatrixData<T>(rows, columns), left(left), right(right), wrapName(wrapName) {
+		OptimizableMatrixData(const std::string wrapName, unsigned int rows, unsigned int columns) :
+				MatrixData<T>(rows, columns), wrapName(wrapName) {
 		}
 
-		OptimizableMatrixData(const OptimizableMatrixData<T, O, MD1, MD2> &another) :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), wrapName(another.wrapName) {
+		OptimizableMatrixData(const OptimizableMatrixData<T, O> &another) :
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to copy
 		}
 
-		OptimizableMatrixData(OptimizableMatrixData<T, O, MD1, MD2> &&another) noexcept :
-				MatrixData<T>(another.rows(), another.columns()), left(another.left), right(another.right), wrapName(another.wrapName) {
+		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to move
 		}
 
@@ -43,7 +42,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 				std::unique_lock<std::mutex> lock(this->optimization_mutex);
 				if (!this->isOptimizing) {
 					this->isOptimizing = true;
-					const_cast<OptimizableMatrixData<T, O, MD1, MD2> *>(this)->doOptimization(threadPool);
+					const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization(threadPool);
 				}
 			}
 		}
@@ -51,21 +50,14 @@ class OptimizableMatrixData : public MatrixData<T> {
 		void setOptimized(std::shared_ptr<O> optimized) const {
 			if (this->optimized != NULL) {
 				Utils::error("Matrix already optimized!");
+			} else if (optimized == NULL) {
+				Utils::error("Optimized cannot be NULL!");
+			} else if (optimized->rows() < this->rows() || optimized->columns() < this->columns()) {
+				Utils::error("The optimized matrix should be bigger!");
 			}
 			this->optimized = optimized;
-			this->optimized->optimize(GLOBAL_THREAD_POOL);
 			this->condition.notify_all();
-		}
-
-		virtual void waitOptimized() const {
-			//Making sure I'm optimizing...
-			this->optimize(GLOBAL_THREAD_POOL);
-			//Waiting for optimized
-			std::unique_lock<std::mutex> lock(this->optimization_mutex);
-			this->condition.wait(lock, [=] { return optimized != NULL; });
-			if (this->optimized == NULL) {
-				Utils::error("Not yet optimized");
-			}
+			this->optimized->optimize(GLOBAL_THREAD_POOL);
 		}
 
 		O *optOptimized() const {
@@ -77,19 +69,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 			return this->optimized->get(row, col);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
-
-		OptimizableMatrixData<T, O, MD1, MD2> copy() const {
-			return OptimizableMatrixData<T, O, MD1, MD2>(this->left.copy(), this->right.copy());
-		}
-
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
-			this->waitOptimized();
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optimized.get()}, std::is_same<MD1, MatrixData<T> *>::value);
-		};
+		COMMON_MATRIX_DATA_METHODS
 
 		virtual const std::string getDebugName() const override {
 			return this->wrapName;
@@ -101,6 +81,17 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		virtual void doOptimization(ThreadPool *threadPool) = 0;
+
+		void waitOptimized() const {
+			//Making sure I'm optimizing...
+			this->optimize(GLOBAL_THREAD_POOL);
+			//Waiting for optimized
+			std::unique_lock<std::mutex> lock(this->optimization_mutex);
+			this->condition.wait(lock, [=] { return optimized != NULL; });
+			if (this->optimized == NULL) {
+				Utils::error("Not yet optimized");
+			}
+		}
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H

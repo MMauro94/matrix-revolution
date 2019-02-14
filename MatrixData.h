@@ -13,6 +13,29 @@ class VectorMatrixData;
 template<typename T, class MD1, class MD2>
 class MultiplyMatrix;
 
+//This macro is used to add methods to implementations of MatrixData, without copy-pasting code.
+//It is necessary, since those methods call an inherited non-virtual method
+#define COMMON_MATRIX_DATA_METHODS        \
+T virtualGet(unsigned row, unsigned col) const override {\
+    if(row < 0 || row >= this->rows() || col < 0 || col >= this->columns()){\
+        Utils::error("Illegal index");\
+    }\
+    return this->get(row, col);\
+}\
+\
+VectorMatrixData<T> materialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const override {\
+    if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
+        Utils::error("Illegal bounds");\
+    }\
+    VectorMatrixData<T> ret(rows, columns);\
+    for (unsigned r = 0; r < rows; r++) {\
+        for (unsigned c = 0; c < columns; c++) {\
+            ret.set(r, c, this->get(r + rowOffset, c + colOffset));\
+        }\
+    }\
+    return ret;\
+}
+
 /**
  * Abstract class that exposes the data of the matrix
  * @tparam T type of the data
@@ -56,7 +79,7 @@ class MatrixData {
 
 		virtual T virtualGet(unsigned row, unsigned col) const = 0;
 
-		virtual void waitOptimized() const {}
+		virtual VectorMatrixData<T> materialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const = 0;
 
 		virtual void optimize(ThreadPool *threadPool) const {
 		}
@@ -89,7 +112,7 @@ class VectorMatrixData : public MatrixData<T> {
 
 	private:
 		std::shared_ptr<std::vector<T>> vector;
-		const char *debugName = nullptr;
+		std::string debugName;
 	public:
 
 		VectorMatrixData(unsigned rows, unsigned columns, std::shared_ptr<std::vector<T>> vector) : MatrixData<T>(rows, columns),
@@ -104,9 +127,7 @@ class VectorMatrixData : public MatrixData<T> {
 			return (*this->vector.get())[row * this->columns() + col];
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		void set(unsigned row, unsigned col, T t) {
 			(*this->vector.get())[row * this->columns() + col] = t;
@@ -117,12 +138,12 @@ class VectorMatrixData : public MatrixData<T> {
 			return VectorMatrixData<T>(this->rows(), this->columns(), std::make_shared<std::vector<T>>(*this->vector.get()));
 		}
 
-		void setDebugName(const char *debugName) {
+		void setDebugName(std::string debugName) {
 			this->debugName = debugName;
 		}
 
 		const std::string getDebugName() const override {
-			if (this->debugName == NULL) {
+			if (this->debugName.empty()) {
 				return "?";
 			} else {
 				return this->debugName;
@@ -131,13 +152,7 @@ class VectorMatrixData : public MatrixData<T> {
 
 		template<class MD>
 		static VectorMatrixData<T> toVector(MD matrixData) {
-			VectorMatrixData<T> ret(matrixData.rows(), matrixData.columns());
-			for (unsigned r = 0; r < ret.rows(); r++) {
-				for (unsigned c = 0; c < ret.columns(); c++) {
-					ret.set(r, c, matrixData.get(r, c));
-				}
-			}
-			return ret;
+			return matrixData.materialize(0, 0, matrixData.rows(), matrixData.columns());
 		}
 };
 
@@ -157,20 +172,16 @@ class SingleMatrixWrapper : public MatrixData<T> {
 																								 wrapName(wrapName) {
 		}
 
-		virtual void waitOptimized() const override {
-			this->wrapped.waitOptimized();
-		}
-
-		virtual void optimize(ThreadPool *threadPool) const override {
+		void optimize(ThreadPool *threadPool) const override {
 			this->wrapped.optimize(threadPool);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
 			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->wrapped}, false);
 		};
 
-		virtual const std::string getDebugName() const override {
+		const std::string getDebugName() const override {
 			return this->wrapName;
 		}
 };
@@ -192,17 +203,12 @@ class BiMatrixWrapper : public MatrixData<T> {
 																									  left(left), right(right), wrapName(wrapName) {
 		}
 
-		virtual void waitOptimized() const {
-			this->left.waitOptimized();
-			this->right.waitOptimized();
-		}
-
-		virtual void optimize(ThreadPool *threadPool) const {
+		void optimize(ThreadPool *threadPool) const override {
 			this->left.optimize(threadPool);
 			this->right.optimize(threadPool);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
+		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
 			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			std::vector<const MatrixData<T> *> children;
 			children.push_back(&this->left);
@@ -210,7 +216,7 @@ class BiMatrixWrapper : public MatrixData<T> {
 			MatrixData::printDebugChildrenTree(prefix, isLeft, children, false);
 		};
 
-		virtual const std::string getDebugName() const override {
+		const std::string getDebugName() const override {
 			return this->wrapName;
 		}
 };
@@ -239,19 +245,13 @@ class MultiMatrixWrapper : public MatrixData<T> {
 																											wrapped(wrapped), wrapName(wrapName) {
 		}
 
-		virtual void waitOptimized() const {
-			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
-				it->waitOptimized();
-			}
-		}
-
-		virtual void optimize(ThreadPool *threadPool) const {
+		void optimize(ThreadPool *threadPool) const override {
 			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
 				it->optimize(threadPool);
 			}
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
+		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
 			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			std::vector<const MatrixData<T> *> pointers;
 			for (auto it = this->wrapped.begin(); it < wrapped.end(); it++) {
@@ -260,7 +260,7 @@ class MultiMatrixWrapper : public MatrixData<T> {
 			MatrixData::printDebugChildrenTree(prefix, isLeft, pointers, false);
 		};
 
-		virtual const std::string getDebugName() const override {
+		const std::string getDebugName() const override {
 			return this->wrapName;
 		}
 };
@@ -290,9 +290,7 @@ class SubmatrixMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(row + this->rowOffset, col + this->colOffset, t);
@@ -319,9 +317,7 @@ class TransposedMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(col, row);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(col, row, t);
@@ -351,9 +347,7 @@ class DiagonalMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(row, row);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(row, row, t);
@@ -387,9 +381,7 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
@@ -442,9 +434,7 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			return this->wrapped[blockIndex].get(row % blockRows, col % blockCols);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return MatrixConcatenation<T, MD>(this->copyWrapped());
@@ -464,7 +454,7 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 template<typename T, class MD>
 class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 	public:
-		explicit MatrixResizer(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>("Resizing", wrapped, rows, columns) {
+		MatrixResizer(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>("Resizing", wrapped, rows, columns) {
 		}
 
 		T get(unsigned row, unsigned col) const {
@@ -475,9 +465,7 @@ class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		MatrixResizer<T, MD> copy() const {
 			return MatrixResizer<T, MD>(this->wrapped.copy(), this->rows(), this->columns());

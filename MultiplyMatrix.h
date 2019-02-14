@@ -7,12 +7,13 @@
 
 #include "MatrixData.h"
 #include "OptimizableMatrixData.h"
+#include "MatrixMaterializer.h"
 #include <deque>
 #include <chrono>
 #include <thread>
 
 template<typename T>
-class VirtualMultiplyMatrix;
+class OptimizedMultiplyMatrix;
 
 template<typename T>
 class BaseMultiplyMatrix;
@@ -22,39 +23,48 @@ class BaseMultiplyMatrix;
  * @tparam T type of the data
  */
 template<typename T, class MD1, class MD2>
-class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2> {
+class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>> {
 
 	private:
 		/**
 		 * Needed to keep the pointers!
 		 * Using a deque, since it allows members without copy/move constructors
 		 */
-		mutable std::deque<VirtualMultiplyMatrix<T>> nodeReferences;
+		mutable std::deque<OptimizedMultiplyMatrix<T>> nodeReferences;
+		MD1 left;
+		MD2 right;
 
 		template<typename U, class MD3, class MD4> friend
 		class MultiplyMatrix;
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>("*", left, right, left.rows(),
-																										   right.columns()) {
+		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>("Unoptimized multiplication", left.rows(), right.columns()),
+											  left(left),
+											  right(right) {
 			if (left.columns() != right.rows()) {
 				Utils::error("Multiplication should be performed on compatible matrices");
 			}
 		}
 
-		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
+		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
-		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, VirtualMultiplyMatrix<T>, MD1, MD2>(another) {
+		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
+		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+			this->waitOptimized();
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optOptimized()}, false);
+		};
 	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		void doOptimization(ThreadPool *threadPool) override {
+			std::cout << "doOptimization " + this->getDebugName() + "\n";
 			threadPool->add([=] {
 				doSerialOptimization();
 			});
@@ -75,7 +85,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 	private:
 
 		void doSerialOptimization() {
-			//std::cout << "Executing " + this->getDebugName(true) + "\n";
+			std::cout << "Executing " + this->getDebugName() + "\n";
 
 
 			//Step 1: getting the chain of multiplications to perform
@@ -102,11 +112,12 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
 			}
 
 			//Step 4: the last item in the chain is the multiplication result.
-			// It is a VirtualMultiplyMatrix, since it comes from nodeReferences.
-			VirtualMultiplyMatrix<T> *optimized = static_cast<VirtualMultiplyMatrix<T> *>(multiplicationChain[0]);
+			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
+			OptimizedMultiplyMatrix<T> *optimized = static_cast<OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
 
-			//std::cout << "Executed " + this->getDebugName(true) + "!!!\n";
-			setOptimized(std::shared_ptr<VirtualMultiplyMatrix<T>>(optimized));
+			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
+			setOptimized(std::shared_ptr<OptimizedMultiplyMatrix<T>>(optimized));
+
 		}
 };
 
@@ -114,24 +125,27 @@ class MultiplyMatrix : public OptimizableMatrixData<T, VirtualMultiplyMatrix<T>,
  * This class is used only internally on MultiplyMatrix, to keep the optimal operation tree.
  */
 template<typename T>
-class VirtualMultiplyMatrix
-		: public OptimizableMatrixData<T, MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>, MatrixData<T> *, MatrixData<T> *> {
+class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> {
+	private:
+		MatrixData<T> *left, *right;
 	public:
-		VirtualMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
-				: OptimizableMatrixData<T, MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>, MatrixData<T> *, MatrixData<T> *>(
-				"**",
-				left,
-				right,
-				left->rows(),
-				right->columns()) {
+		OptimizedMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
+				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns()),
+				  left(left),
+				  right(right) {
 		}
 
 		//No copy constructor
-		VirtualMultiplyMatrix(const VirtualMultiplyMatrix<T> &another) = delete;
+		OptimizedMultiplyMatrix(const OptimizedMultiplyMatrix<T> &another) = delete;
 
 		//No move constructor
-		VirtualMultiplyMatrix(VirtualMultiplyMatrix<T> &&another) noexcept = delete;
+		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
 
+		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+			this->waitOptimized();
+			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optOptimized()}, true);
+		};
 
 	protected:
 
@@ -143,7 +157,7 @@ class VirtualMultiplyMatrix
 
 	private:
 
-		std::vector<MatrixResizer<T, VectorMatrixData<T>>>
+		std::vector<MatrixResizer<T, MatrixMaterializer<T>>>
 		divideInBlocks(MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) {
 			//e.g. matrix is 202x302;
 			//numberOfGridRows = 3
@@ -155,7 +169,7 @@ class VirtualMultiplyMatrix
 						 "-numberOfGridCols = " + std::to_string(numberOfGridCols) + "\n" +
 						 "-rowsOfGrid = " + std::to_string(rowsOfGrid) + "\n" +
 						 "-colsOfGrid = " + std::to_string(colsOfGrid) + "\n";*/
-			std::vector<MatrixResizer<T, VectorMatrixData<T>>> ret;
+			std::vector<MatrixResizer<T, MatrixMaterializer<T>>> ret;
 			for (unsigned r = 0; r < numberOfGridRows; r++) {
 				for (unsigned c = 0; c < numberOfGridCols; c++) {
 					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
@@ -173,17 +187,20 @@ class VirtualMultiplyMatrix
 								 "---blockRows=" + std::to_string(blockRows) + "\n" +
 								 "---blockCols=" + std::to_string(blockCols) + "\n";*/
 
-					VectorMatrixData<T> block(blockRows, blockCols);
+					MatrixMaterializer<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
+
+					/*VectorMatrixData<T> block = matrix->materialize(blockRowStart, blockColStart, blockRows, blockCols);
 					const std::string debugName = matrix->getDebugName() + "[" + std::to_string(r) + "-" + std::to_string(c) + "]";
-					//std::cout << debugName + "\n"; TODO: set a debug name that doesn't get destroyed
 					block.setDebugName(debugName.c_str());
-					for (unsigned rr = 0; rr < blockRows; rr++) {
-						for (unsigned cc = 0; cc < blockCols; cc++) {
-							//TODO: use concrete get()
-							block.set(rr, cc, matrix->virtualGet(blockRowStart + rr, blockColStart + cc));
+					if (false) {//True to use virtual calls... TODO: remove this test
+						for (unsigned rr = 0; rr < blockRows; rr++) {
+							for (unsigned cc = 0; cc < blockCols; cc++) {
+								block.set(rr, cc, matrix->virtualGet(blockRowStart + rr, blockColStart + cc));
+							}
 						}
 					}
-					//I wrap the matrix in a MatrixResizer to make sure every block is of the sme size
+					*/
+					//I wrap the matrix in a MatrixResizer to make sure every block is of the same size
 					ret.emplace_back(block, rowsOfGrid, colsOfGrid);
 				}
 			}
@@ -191,7 +208,7 @@ class VirtualMultiplyMatrix
 		}
 
 		void multiply(ThreadPool *threadPool) {
-			//std::cout << "Executing " + this->getDebugName() + "\n";
+			std::cout << "Executing " + this->getDebugName() + "\n";
 
 			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
@@ -226,56 +243,42 @@ class VirtualMultiplyMatrix
 					resultingBlocks.emplace_back(toMultiply);
 				}
 			}
-
-			MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>> multiplication(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
-																							numberOfGridColsB * colsOfGridB);
-			auto optimied = std::make_shared<MatrixResizer<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>>(multiplication,
-																																 this->rows(),
-																																 this->columns());
-			this->setOptimized(optimied);
+			//optimized is LARGER or equal to this matrix, but that's not a problem
+			auto optimized = std::make_shared<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
+																												numberOfGridColsB * colsOfGridB);
+			this->setOptimized(optimized);
 			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 		}
 };
 
 template<typename T>
-class BaseMultiplyMatrix
-		: public OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>> {
-	public:
-		BaseMultiplyMatrix(MatrixResizer<T, VectorMatrixData<T>> left, MatrixResizer<T, VectorMatrixData<T>> right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>, MatrixResizer<T, VectorMatrixData<T>>, MatrixResizer<T, VectorMatrixData<T>>>("***",
-																																			  left,
-																																			  right,
-																																			  left.rows(),
-																																			  right.columns()) {
-		}
-
-		//No copy constructor
-		//BaseMultiplyMatrix(const BaseMultiplyMatrix<T> &another) = delete;
-
-		//No move constructor
-		//BaseMultiplyMatrix(BaseMultiplyMatrix<T> &&another) noexcept = delete;
-
-
-	protected:
-
-		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] { doSerialOptimization(); });
-		}
-
+class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> {
 	private:
-
+		MatrixResizer<T, MatrixMaterializer<T>> left, right;
+	public:
+		BaseMultiplyMatrix(MatrixResizer<T, MatrixMaterializer<T>> left, MatrixResizer<T, MatrixMaterializer<T>> right)
+				: OptimizableMatrixData<T, VectorMatrixData<T>>("***", left.rows(), right.columns()), left(left), right(right) {
+		}
 
 		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
 			//I print the unoptimized tree, since the optimized one is boring
 			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
 			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->left, &this->right}, false);
 		};
+	protected:
 
+		void doOptimization(ThreadPool *threadPool) override {
+			left.optimize(threadPool);
+			right.optimize(threadPool);
+			threadPool->add([=] { doSerialOptimization(); });
+		}
+
+	private:
 
 		void doSerialOptimization() {
-			/*std::cout << "Executing " + this->getDebugName() +
+			std::cout << "Executing " + this->getDebugName() +
 						 std::to_string(this->left.rows()) + "x" + std::to_string(this->left.columns()) + " * " +
-						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";*/
+						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left.rows(), this->right.columns());
@@ -287,10 +290,11 @@ class BaseMultiplyMatrix
 						sum += this->left.get(r, j) * this->right.get(j, c);
 					}
 					ret->set(r, c, sum);
+					//std::cout << "Computer cell\n";
 				}
 			}
 
-			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
+			std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			this->setOptimized(ret);
 		}
 };

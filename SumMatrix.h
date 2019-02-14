@@ -24,9 +24,7 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 			return this->left.get(row, col) + this->right.get(row, col);
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		SumMatrix<T, MD1, MD2> copy() const {
 			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
@@ -51,9 +49,7 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 			return ret;
 		}
 
-		T virtualGet(unsigned row, unsigned col) const override {
-			return this->get(row, col);
-		}
+		COMMON_MATRIX_DATA_METHODS
 
 		MultiSumMatrix<T, MD> copy() const {
 			return MultiSumMatrix<T, MD>(this->copyWrapped());
