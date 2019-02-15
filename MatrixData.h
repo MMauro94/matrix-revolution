@@ -13,16 +13,9 @@ class VectorMatrixData;
 template<typename T, class MD1, class MD2>
 class MultiplyMatrix;
 
-//This macro is used to add methods to implementations of MatrixData, without copy-pasting code.
-//It is necessary, since those methods call an inherited non-virtual method
-#define COMMON_MATRIX_DATA_METHODS        \
-T virtualGet(unsigned row, unsigned col) const override {\
-    if(row < 0 || row >= this->rows() || col < 0 || col >= this->columns()){\
-        Utils::error("Illegal index");\
-    }\
-    return this->get(row, col);\
-}\
-\
+//This macro is used to add the method materialize() to implementations of MatrixData, without copy-pasting code.
+//It is necessary, since this methods call an inherited non-virtual method (i.e. get(r,c))
+#define MATERIALIZE_IMPL        \
 VectorMatrixData<T> materialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const override {\
     if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
         Utils::error("Illegal bounds");\
@@ -77,30 +70,38 @@ class MatrixData {
 			return this->_rows;
 		}
 
-		virtual T virtualGet(unsigned row, unsigned col) const = 0;
-
 		virtual VectorMatrixData<T> materialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const = 0;
 
 		virtual void optimize(ThreadPool *threadPool) const {
+			auto children = this->getChildren();
+			for (auto it = children.begin(); it < children.end(); it++) {
+				(*it)->optimize(threadPool);
+			}
 		}
 
-		virtual void printTree() const {
-			this->printDebugTree("", false, false);
+		void printTree() const {
+			this->printDebugTree("", false);
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const {
-			std::cout << prefix + (isLeft ? "|" : "\\") + (hasVirtualBarrier ? "!-" : "--") + this->getDebugName() + "\n";
+		virtual void printDebugTree(const std::string &prefix, bool isLeft) const {
+			this->doPrintDebugTree(prefix, isLeft, this->getChildren());
 		};
+
 
 		virtual const std::string getDebugName() const = 0;
 
-		static void
-		printDebugChildrenTree(const std::string &prefix, bool isLeft, std::vector<const MatrixData<T> *> children, bool hasVirtualBarrier) {
-			// enter the next tree level - left and right branch
-			for (auto it = children.begin(); it < children.end(); it++) {
-				(*it)->printDebugTree(prefix + (isLeft ? "|   " : "    "), (it + 1) < children.end(), hasVirtualBarrier);
-			}
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return std::vector<const MatrixData<T> *>();
 		}
+
+	protected:
+
+		void doPrintDebugTree(const std::string &prefix, bool isLeft, std::vector<const MatrixData<T> *> children) const {
+			std::cout << prefix + (isLeft ? "|" : "\\") + "--" + this->getDebugName() + "\n";
+			for (auto it = children.begin(); it < children.end(); it++) {
+				(*it)->printDebugTree(prefix + (isLeft ? "|   " : "    "), (it + 1) < children.end());
+			}
+		};
 };
 
 /**
@@ -127,7 +128,7 @@ class VectorMatrixData : public MatrixData<T> {
 			return (*this->vector.get())[row * this->columns() + col];
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
 			(*this->vector.get())[row * this->columns() + col] = t;
@@ -172,17 +173,12 @@ class SingleMatrixWrapper : public MatrixData<T> {
 																								 wrapName(wrapName) {
 		}
 
-		void optimize(ThreadPool *threadPool) const override {
-			this->wrapped.optimize(threadPool);
-		}
-
-		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {&this->wrapped}, false);
-		};
-
 		const std::string getDebugName() const override {
 			return this->wrapName;
+		}
+
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return {&this->wrapped};
 		}
 };
 
@@ -203,21 +199,12 @@ class BiMatrixWrapper : public MatrixData<T> {
 																									  left(left), right(right), wrapName(wrapName) {
 		}
 
-		void optimize(ThreadPool *threadPool) const override {
-			this->left.optimize(threadPool);
-			this->right.optimize(threadPool);
-		}
-
-		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			std::vector<const MatrixData<T> *> children;
-			children.push_back(&this->left);
-			children.push_back(&this->right);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, children, false);
-		};
-
 		const std::string getDebugName() const override {
 			return this->wrapName;
+		}
+
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return {&this->left, &this->right};
 		}
 };
 
@@ -245,23 +232,16 @@ class MultiMatrixWrapper : public MatrixData<T> {
 																											wrapped(wrapped), wrapName(wrapName) {
 		}
 
-		void optimize(ThreadPool *threadPool) const override {
-			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
-				it->optimize(threadPool);
-			}
+		const std::string getDebugName() const override {
+			return this->wrapName;
 		}
 
-		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
 			std::vector<const MatrixData<T> *> pointers;
 			for (auto it = this->wrapped.begin(); it < wrapped.end(); it++) {
 				pointers.push_back(&(*it));
 			}
-			MatrixData::printDebugChildrenTree(prefix, isLeft, pointers, false);
-		};
-
-		const std::string getDebugName() const override {
-			return this->wrapName;
+			return pointers;
 		}
 };
 
@@ -290,7 +270,7 @@ class SubmatrixMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(row + this->rowOffset, col + this->colOffset, t);
@@ -317,7 +297,7 @@ class TransposedMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(col, row);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(col, row, t);
@@ -347,7 +327,7 @@ class DiagonalMD : public SingleMatrixWrapper<T, MD> {
 			return this->wrapped.get(row, row);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
 			this->wrapped.set(row, row, t);
@@ -381,7 +361,7 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
@@ -407,8 +387,8 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		explicit MatrixConcatenation(std::deque<MD> blocks, unsigned rows, unsigned columns) :
 				MultiMatrixWrapper<T, MD>("Concatenation", blocks, rows, columns) {
 			//Checking that all the blocks have the same size
-			unsigned blockRows = blocks[0].rows();
-			unsigned blockCols = blocks[0].columns();
+			unsigned blockRows = this->getRowsOfBlocks();
+			unsigned blockCols = this->getColumnsOfBlocks();
 			for (auto it = blocks.begin(); it != blocks.end(); it++) {
 				if (it->rows() != blockRows || it->columns() != blockCols) {
 					Utils::error("All the matrices must be of the same size!");
@@ -426,15 +406,35 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		}
 
 		T get(unsigned row, unsigned col) const {
-			unsigned blockRows = this->wrapped[0].rows();
-			unsigned blockCols = this->wrapped[0].columns();
+			unsigned blockRows = this->getRowsOfBlocks();
+			unsigned blockCols = this->getColumnsOfBlocks();
 			unsigned blockRowIndex = row / blockRows;
 			unsigned blockColIndex = col / blockCols;
-			unsigned blockIndex = blockRowIndex * (this->columns() / blockCols) + blockColIndex;
+			unsigned blockIndex = blockRowIndex * this->getNumberOfColumnBlocks() + blockColIndex;
 			return this->wrapped[blockIndex].get(row % blockRows, col % blockCols);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		/**
+		 * @return the number of vertical blocks
+		 */
+		unsigned getNumberOfColumnBlocks() const { return this->columns() / this->getColumnsOfBlocks(); }
+
+		/**
+		 * @return the number of horizontal blocks
+		 */
+		unsigned getNumberOfRowBlocks() const { return this->rows() / this->getRowsOfBlocks(); }
+
+		/**
+		 * @return the number of rows of each block
+		 */
+		unsigned getRowsOfBlocks() const { return wrapped[0].rows(); }
+
+		/**
+		 * @return the number of columns of each block
+		 */
+		unsigned getColumnsOfBlocks() const { return wrapped[0].columns(); }
+
+		MATERIALIZE_IMPL
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return MatrixConcatenation<T, MD>(this->copyWrapped());
@@ -465,7 +465,7 @@ class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		MatrixResizer<T, MD> copy() const {
 			return MatrixResizer<T, MD>(this->wrapped.copy(), this->rows(), this->columns());

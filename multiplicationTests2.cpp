@@ -59,11 +59,11 @@ int main() {
 	clock_t end = clock();
 	std::cout << "The first element is " << first << ", and it took " << double(end - begin) / CLOCKS_PER_SEC << " seconds" << std::endl;
 
-	multiplication.getData().printTree();
-
-	std::cout << std::endl << std::endl;
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;
-	//multiplication.print("%2d");
+	std::cout << std::endl << std::endl;
+	multiplication.getData().printTree();
+	std::cout << std::endl << std::endl;
+	std::cout << "Oks" << std::endl;
 
 	return 0;
 }

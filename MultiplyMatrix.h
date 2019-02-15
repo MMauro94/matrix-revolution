@@ -12,6 +12,8 @@
 #include <chrono>
 #include <thread>
 
+unsigned OPTIMAL_MULTIPLICATION_SIZE = 150;
+
 template<typename T>
 class OptimizedMultiplyMatrix;
 
@@ -39,7 +41,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>("Unoptimized multiplication", left.rows(), right.columns()),
+		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>("Unoptimized multiplication", left.rows(), right.columns(), false),
 											  left(left),
 											  right(right) {
 			if (left.columns() != right.rows()) {
@@ -53,18 +55,22 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+		void printDebugTree(const std::string &prefix, bool isLeft) const override {
 			this->waitOptimized();
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optOptimized()}, false);
+			//I print the optimized tree, not the optimized one
+			this->doPrintDebugTree(prefix, isLeft, {this->optOptimized()});
 		};
+
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return {&this->left, &this->right};
+		}
+
 	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		void doOptimization(ThreadPool *threadPool) override {
-			std::cout << "doOptimization " + this->getDebugName() + "\n";
 			threadPool->add([=] {
 				doSerialOptimization();
 			});
@@ -85,9 +91,6 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 	private:
 
 		void doSerialOptimization() {
-			std::cout << "Executing " + this->getDebugName() + "\n";
-
-
 			//Step 1: getting the chain of multiplications to perform
 			std::vector<MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
@@ -115,9 +118,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
 			OptimizedMultiplyMatrix<T> *optimized = static_cast<OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
 
-			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			setOptimized(std::shared_ptr<OptimizedMultiplyMatrix<T>>(optimized));
-
 		}
 };
 
@@ -130,7 +131,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		MatrixData<T> *left, *right;
 	public:
 		OptimizedMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
-				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns()),
+				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns(), true),
 				  left(left),
 				  right(right) {
 		}
@@ -141,17 +142,19 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		//No move constructor
 		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
 
-		void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
+		void printDebugTree(const std::string &prefix, bool isLeft) const override {
 			this->waitOptimized();
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->optOptimized()}, true);
+			//I print the optimized tree, not the optimized one
+			this->doPrintDebugTree(prefix, isLeft, {this->optOptimized()});
 		};
+
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return {this->left, this->right};
+		}
 
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			this->left->optimize(threadPool);
-			this->right->optimize(threadPool);
 			threadPool->add([=] { multiply(threadPool); });
 		}
 
@@ -164,11 +167,6 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 			// numberOfGridCols = 4
 			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
 			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
-			/*std::cout << "Matrix size = " + std::to_string(matrix->rows()) + "x" + std::to_string(matrix->columns()) + ";\n" +
-						 "-numberOfGridRows = " + std::to_string(numberOfGridRows) + "\n" +
-						 "-numberOfGridCols = " + std::to_string(numberOfGridCols) + "\n" +
-						 "-rowsOfGrid = " + std::to_string(rowsOfGrid) + "\n" +
-						 "-colsOfGrid = " + std::to_string(colsOfGrid) + "\n";*/
 			std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>> ret;
 			for (unsigned r = 0; r < numberOfGridRows; r++) {
 				for (unsigned c = 0; c < numberOfGridCols; c++) {
@@ -178,14 +176,6 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 					unsigned blockColEnd = std::min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
 					unsigned int blockRows = blockRowEnd - blockRowStart;
 					unsigned int blockCols = blockColEnd - blockColStart;
-					/*std::cout << "--Creating block " + std::to_string(r) + "-" + std::to_string(c) + " of size " + std::to_string(rowsOfGrid) + "x" +
-								 std::to_string(colsOfGrid) + "\n" +
-								 "---blockRowStart=" + std::to_string(blockRowStart) + "\n" +
-								 "---blockRowEnd=" + std::to_string(blockRowEnd) + "\n" +
-								 "---blockColStart=" + std::to_string(blockColStart) + "\n" +
-								 "---blockColEnd=" + std::to_string(blockColEnd) + "\n" +
-								 "---blockRows=" + std::to_string(blockRows) + "\n" +
-								 "---blockCols=" + std::to_string(blockCols) + "\n";*/
 
 					MatrixMaterializer<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
 					//I wrap the matrix in a MatrixResizer to make sure every block is of the same size
@@ -196,26 +186,20 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		}
 
 		void multiply(ThreadPool *threadPool) {
-			std::cout << "Executing " + this->getDebugName() + "\n";
-
-			//std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-
-			unsigned optimalMultiplicationSize = 100;
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
-			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), optimalMultiplicationSize);//e.g. 3
+			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
-			unsigned numberOfGridColsA = Utils::ceilDiv(this->left->columns(), optimalMultiplicationSize);//e.g. 4
+			unsigned numberOfGridColsA = Utils::ceilDiv(this->left->columns(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 4
 			unsigned colsOfGridA = Utils::ceilDiv(this->left->columns(), numberOfGridColsA);//e.g. 76
 			//Now that I've decided the blocks of A, I can comute the blocks of B.
 			//For example, if B is 302x404, it will be divided in 4x5 blocks of size 76x81
 			unsigned numberOfGridRowsB = numberOfGridColsA;//4
 			unsigned rowsOfGridB = colsOfGridA;//76
-			unsigned numberOfGridColsB = Utils::ceilDiv(this->right->columns(), optimalMultiplicationSize);// e.g. 5
+			unsigned numberOfGridColsB = Utils::ceilDiv(this->right->columns(), OPTIMAL_MULTIPLICATION_SIZE);// e.g. 5
 			unsigned colsOfGridB = Utils::ceilDiv(this->right->columns(), numberOfGridColsB);//e.g. 81
 			//Now we divide the matrices in blocks
 			auto blocksOfA = this->divideInBlocks(this->left, numberOfGridRowsA, numberOfGridColsA);
 			auto blocksOfB = this->divideInBlocks(this->right, numberOfGridRowsB, numberOfGridColsB);
-			//std::cout << "blocksOfA = " + std::to_string(blocksOfA.size()) + "; blocksOfB = " + std::to_string(blocksOfB.size()) + "\n";
 			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
 
 			//Cose da fare:
@@ -235,7 +219,6 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 			auto optimized = std::make_shared<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
 																												numberOfGridColsB * colsOfGridB);
 			this->setOptimized(optimized);
-			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 		}
 };
 
@@ -245,30 +228,22 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, right;
 	public:
 		BaseMultiplyMatrix(std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>>("***", left->rows(), right->columns()), left(left), right(right) {
+				: OptimizableMatrixData<T, VectorMatrixData<T>>("Multiplication", left->rows(), right->columns(), true), left(left), right(right) {
 		}
 
-		virtual void printDebugTree(const std::string &prefix, bool isLeft, bool hasVirtualBarrier) const override {
-			//I print the unoptimized tree, since the optimized one is boring
-			MatrixData::printDebugTree(prefix, isLeft, hasVirtualBarrier);
-			MatrixData::printDebugChildrenTree(prefix, isLeft, {this->left.get(), this->right.get()}, false);
-		};
+		virtual std::vector<const MatrixData<T> *> getChildren() const {
+			return {this->left.get(), this->right.get()};
+		}
+
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			left->optimize(threadPool);
-			right->optimize(threadPool);
 			threadPool->add([=] { doSerialOptimization(); });
 		}
 
 	private:
 
 		void doSerialOptimization() {
-			/*std::cout << "Executing " + this->getDebugName() +
-						 std::to_string(this->left.rows()) + "x" + std::to_string(this->left.columns()) + " * " +
-						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";*/
-			//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			//ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {
@@ -278,11 +253,8 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 						sum += this->left->get(r, j) * this->right->get(j, c);
 					}
 					ret->set(r, c, sum);
-					//std::cout << "Computer cell\n";
 				}
 			}
-
-			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			this->setOptimized(ret);
 		}
 };

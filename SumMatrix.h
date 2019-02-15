@@ -7,9 +7,6 @@
 
 #include "OptimizableMatrixData.h"
 
-template<typename T, class MD1, class MD2>
-class BaseSumMatrix;
-
 /**
  * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
  * @tparam T type of the data
@@ -17,14 +14,14 @@ class BaseSumMatrix;
 template<typename T, class MD1, class MD2>
 class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 	public:
-		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>("+", left, right, left.rows(), left.columns()) {
+		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>("Sum", left, right, left.rows(), left.columns()) {
 		}
 
 		T get(unsigned row, unsigned col) const {
 			return this->left.get(row, col) + this->right.get(row, col);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		SumMatrix<T, MD1, MD2> copy() const {
 			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
@@ -32,13 +29,13 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 };
 
 /**
- * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
+ * Implementation of <code>MatrixData</code> that exposes the sum of a list given matrices
  * @tparam T type of the data
  */
 template<typename T, class MD>
 class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 	public:
-		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>("+", wrapped, wrapped[0].rows(), wrapped[0].columns()) {
+		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>("Sum", wrapped, wrapped[0].rows(), wrapped[0].columns()) {
 		}
 
 		T get(unsigned row, unsigned col) const {
@@ -49,7 +46,7 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 			return ret;
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		MultiSumMatrix<T, MD> copy() const {
 			return MultiSumMatrix<T, MD>(this->copyWrapped());

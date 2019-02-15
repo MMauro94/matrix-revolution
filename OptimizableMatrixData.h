@@ -17,28 +17,38 @@ class OptimizableMatrixData : public MatrixData<T> {
 		mutable std::mutex optimization_mutex;
 		mutable std::condition_variable condition;
 	private:
+		const bool callOptimizeOnChildren;
 		mutable std::shared_ptr<O> optimized = NULL;
 		mutable bool isOptimizing = false;
 
 
 	public:
 
-		OptimizableMatrixData(const std::string wrapName, unsigned int rows, unsigned int columns) :
-				MatrixData<T>(rows, columns), wrapName(wrapName) {
+		OptimizableMatrixData(const std::string wrapName, unsigned int rows, unsigned int columns, bool callOptimizeOnChildren) :
+				MatrixData<T>(rows, columns), wrapName(wrapName), callOptimizeOnChildren(callOptimizeOnChildren) {
 		}
 
 		OptimizableMatrixData(const OptimizableMatrixData<T, O> &another) :
-				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName), callOptimizeOnChildren(another.callOptimizeOnChildren) {
 			//The cached data is not passed around, since it will be too difficult to copy
+			if (this->optimized != NULL) {
+				std::cout << "Warning: losing optimized matrix!\n";
+			}
 		}
 
 		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
-				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName), callOptimizeOnChildren(another.callOptimizeOnChildren) {
 			//The cached data is not passed around, since it will be too difficult to move
+			if (this->optimized != NULL) {
+				std::cout << "Warning: losing optimized matrix!\n";
+			}
 		}
 
 		void optimize(ThreadPool *threadPool) const override {
 			if (this->optimized == NULL) {
+				if (this->callOptimizeOnChildren) {
+					MatrixData::optimize(threadPool);
+				}
 				std::unique_lock<std::mutex> lock(this->optimization_mutex);
 				if (!this->isOptimizing) {
 					this->isOptimizing = true;
@@ -69,7 +79,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 			return this->optimized->get(row, col);
 		}
 
-		COMMON_MATRIX_DATA_METHODS
+		MATERIALIZE_IMPL
 
 		virtual const std::string getDebugName() const override {
 			return this->wrapName;
