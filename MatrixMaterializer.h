@@ -31,6 +31,7 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		void doOptimization(ThreadPool *threadPool) override {
 			this->wrapped->optimize(threadPool);
 			threadPool->add([=] {
+				//std::cout << "Materializing...\n";
 				setOptimized(std::make_shared<VectorMatrixData<T>>(wrapped->materialize(rowOffset, colOffset, rows(), columns())));
 			});
 		}
