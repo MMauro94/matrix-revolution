@@ -276,13 +276,13 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 	private:
 
 		void doSerialOptimization() {
-			std::cout << "Executing " + this->getDebugName() +
+			/*std::cout << "Executing " + this->getDebugName() +
 						 std::to_string(this->left.rows()) + "x" + std::to_string(this->left.columns()) + " * " +
-						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";
+						 std::to_string(this->right.rows()) + "x" + std::to_string(this->right.columns()) + "\n";*/
 			//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left.rows(), this->right.columns());
-			ret->setDebugName("Multiplication result");
+			//ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
 					T sum = 0;
@@ -294,7 +294,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 				}
 			}
 
-			std::cout << "Executed " + this->getDebugName() + "!!!\n";
+			//std::cout << "Executed " + this->getDebugName() + "!!!\n";
 			this->setOptimized(ret);
 		}
 };
