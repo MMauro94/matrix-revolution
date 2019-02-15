@@ -46,12 +46,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 		void optimize(ThreadPool *threadPool) const override {
 			if (this->optimized == NULL) {
-				if (this->callOptimizeOnChildren) {
-					MatrixData<T>::optimize(threadPool);
-				}
 				std::unique_lock<std::mutex> lock(this->optimization_mutex);
 				if (!this->isOptimizing) {
 					this->isOptimizing = true;
+					if (this->callOptimizeOnChildren) {
+						MatrixData<T>::optimize(threadPool);
+					}
 					const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization(threadPool);
 				}
 			}
@@ -70,11 +70,8 @@ class OptimizableMatrixData : public MatrixData<T> {
 			this->optimized->optimize(GLOBAL_THREAD_POOL);
 		}
 
-		O *optOptimized() const {
-			return this->optimized.get();
-		}
-
 		T get(unsigned int row, unsigned int col) const {
+			this->optimize(GLOBAL_THREAD_POOL);
 			this->waitOptimized();
 			return this->optimized->get(row, col);
 		}
@@ -85,6 +82,19 @@ class OptimizableMatrixData : public MatrixData<T> {
 			return this->wrapName;
 		}
 
+		void waitOptimized() const override {
+			//Waiting for optimized
+			std::unique_lock<std::mutex> lock(this->optimization_mutex);
+			this->condition.wait(lock, [=] { return optimized != NULL; });
+			if (this->optimized == NULL) {
+				Utils::error("Not yet optimized");
+			}
+			if (this->callOptimizeOnChildren) {
+				MatrixData<T>::waitOptimized();
+			}
+			this->optimized->waitOptimized();
+		}
+
 	protected:
 
 		/**
@@ -92,15 +102,14 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 */
 		virtual void doOptimization(ThreadPool *threadPool) = 0;
 
-		void waitOptimized() const {
-			//Making sure I'm optimizing...
+		O *optOptimized() const {
+			return this->optimized.get();
+		}
+
+		O *getOptimized() const {
 			this->optimize(GLOBAL_THREAD_POOL);
-			//Waiting for optimized
-			std::unique_lock<std::mutex> lock(this->optimization_mutex);
-			this->condition.wait(lock, [=] { return optimized != NULL; });
-			if (this->optimized == NULL) {
-				Utils::error("Not yet optimized");
-			}
+			this->waitOptimized();
+			return this->optOptimized();
 		}
 };
 

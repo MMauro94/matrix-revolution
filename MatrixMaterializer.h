@@ -21,9 +21,9 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	protected:
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add(this->getDebugName(), [=] {
+			threadPool->add([=] {
 				auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
-				this->setOptimized(std::make_shared<VectorMatrixData<T>>(materialized));
+				this->setOptimized(std::make_unique<VectorMatrixData<T>>(materialized));
 			});
 		}
 

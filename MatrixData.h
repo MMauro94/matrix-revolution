@@ -74,8 +74,15 @@ class MatrixData {
 
 		virtual void optimize(ThreadPool *threadPool) const {
 			auto children = this->getChildren();
-			for (auto it = children.begin(); it < children.end(); it++) {
-				(*it)->optimize(threadPool);
+			for (auto &child:children) {
+				child->optimize(threadPool);
+			}
+		}
+
+		virtual void waitOptimized() const {
+			auto children = this->getChildren();
+			for (auto &child:children) {
+				child->waitOptimized();
 			}
 		}
 
@@ -220,8 +227,8 @@ class MultiMatrixWrapper : public MatrixData<T> {
 
 		std::deque<MD> copyWrapped() const {
 			std::deque<MD> ret;
-			for (auto it = this->wrapped.begin(); it != this->wrapped.end(); it++) {
-				ret().push_back(it.copy());
+			for (auto &m : this->wrapped) {
+				ret.push_back(m.copy());
 			}
 			return ret;
 		}
@@ -389,8 +396,8 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			//Checking that all the blocks have the same size
 			unsigned blockRows = this->getRowsOfBlocks();
 			unsigned blockCols = this->getColumnsOfBlocks();
-			for (auto it = blocks.begin(); it != blocks.end(); it++) {
-				if (it->rows() != blockRows || it->columns() != blockCols) {
+			for (auto &block: blocks) {
+				if (block.rows() != blockRows || block.columns() != blockCols) {
 					Utils::error("All the matrices must be of the same size!");
 				}
 			}
@@ -438,12 +445,6 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 
 		DiagonalMatrixMD<T, MD> copy() const {
 			return MatrixConcatenation<T, MD>(this->copyWrapped());
-		}
-
-		void optimize(ThreadPool *threadPool) const override {
-			for (auto it = this->wrapped.begin(); it != this->wrapped.end(); it++) {
-				it->optimize(threadPool);
-			}
 		}
 };
 

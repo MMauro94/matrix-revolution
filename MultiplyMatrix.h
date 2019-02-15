@@ -56,9 +56,8 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		}
 
 		void printDebugTree(const std::string &prefix, bool isLeft) const override {
-			this->waitOptimized();
 			//I print the optimized tree, not the optimized one
-			this->doPrintDebugTree(prefix, isLeft, {this->optOptimized()});
+			this->doPrintDebugTree(prefix, isLeft, {this->getOptimized()});
 		};
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
@@ -76,7 +75,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add(this->getDebugName(), [=] {
+			threadPool->add([=] {
 				doSerialOptimization();
 			});
 		}
@@ -148,9 +147,8 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
 
 		void printDebugTree(const std::string &prefix, bool isLeft) const override {
-			this->waitOptimized();
 			//I print the optimized tree, not the optimized one
-			this->doPrintDebugTree(prefix, isLeft, {this->optOptimized()});
+			this->doPrintDebugTree(prefix, isLeft, {this->getOptimized()});
 		};
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
@@ -160,7 +158,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add(this->getDebugName(), [=] { multiply(threadPool); });
+			threadPool->add([=] { multiply(threadPool); });
 		}
 
 	private:
@@ -243,7 +241,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add(this->getDebugName(), [=] { doSerialOptimization(); });
+			threadPool->add([=] { doSerialOptimization(); });
 		}
 
 	private:
