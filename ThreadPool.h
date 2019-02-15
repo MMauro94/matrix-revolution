@@ -11,28 +11,39 @@
 #include <mutex>
 #include <functional>
 #include <deque>
+#include <condition_variable>
 #include "Utils.h"
 
 class ThreadPool {
 	private:
 		unsigned threadCount;
 		std::vector<std::thread> threads;
-		std::deque<std::function<void()>> queue;
+		std::deque<std::pair<std::string, std::function<void()>>> queue;
 		std::mutex queue_mutex;
 		std::condition_variable condition;
 
-		void loop() {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-noreturn"
+
+		void loop(const std::string &threadName) {
 			while (true) {
 				std::function<void()> job;
+				std::string jobName;
 				{
+					std::cout << threadName + " is waiting...\n";
 					std::unique_lock<std::mutex> lock(this->queue_mutex);
 					condition.wait(lock, [=] { return !queue.empty(); });
-					job = queue.back();
+					std::pair<std::string, std::function<void()>> &pair = queue.back();
+					jobName = pair.first;
+					job = pair.second;
 					queue.pop_back();
 				}
+				std::cout << threadName + " is executing job " + jobName + "...\n";
 				job();
 			}
 		}
+
+#pragma clang diagnostic pop
 
 	public:
 		explicit ThreadPool(unsigned threadCount) : threadCount(threadCount) {
@@ -42,10 +53,10 @@ class ThreadPool {
 			return this->threadCount;
 		}
 
-		void add(const std::function<void()> &runnable) {
+		void add(std::string jobName, const std::function<void()> &runnable) {
 			{
 				std::unique_lock<std::mutex> lock(this->queue_mutex);
-				this->queue.push_front(runnable);
+				this->queue.push_front(std::make_pair(jobName, runnable));
 			}
 			condition.notify_one();
 		}
@@ -55,7 +66,8 @@ class ThreadPool {
 				Utils::error("Pool already started!");
 			}
 			for (unsigned i = 0; i < this->threadCount; i++) {
-				this->threads.emplace_back([=] { loop(); });
+				const unsigned threadIndex = i;
+				this->threads.emplace_back([=] { loop("Thread " + std::to_string(threadIndex)); });
 			}
 
 			return this;

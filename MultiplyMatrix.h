@@ -65,13 +65,18 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			return {&this->left, &this->right};
 		}
 
+
+		MultiplyMatrix<T, MD1, MD2> copy() const {
+			return MultiplyMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		}
+
 	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] {
+			threadPool->add(this->getDebugName(), [=] {
 				doSerialOptimization();
 			});
 		}
@@ -116,9 +121,9 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 
 			//Step 4: the last item in the chain is the multiplication result.
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
-			OptimizedMultiplyMatrix<T> *optimized = static_cast<OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
+			auto *optimized = static_cast<OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
 
-			setOptimized(std::shared_ptr<OptimizedMultiplyMatrix<T>>(optimized));
+			this->setOptimized(std::shared_ptr<OptimizedMultiplyMatrix<T>>(optimized));
 		}
 };
 
@@ -155,7 +160,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] { multiply(threadPool); });
+			threadPool->add(this->getDebugName(), [=] { multiply(threadPool); });
 		}
 
 	private:
@@ -238,7 +243,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 	protected:
 
 		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] { doSerialOptimization(); });
+			threadPool->add(this->getDebugName(), [=] { doSerialOptimization(); });
 		}
 
 	private:

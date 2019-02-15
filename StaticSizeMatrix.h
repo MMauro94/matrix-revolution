@@ -21,7 +21,7 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		class Matrix;
 
 	protected:
-		explicit StaticSizeMatrix(MD &data) : Matrix(data) {
+		explicit StaticSizeMatrix(const MD &data) : Matrix<T, MD>(data) {
 			if (data.columns() != COLUMNS) {
 				Utils::error("Invalid columns count");
 			} else if (data.rows() != ROWS) {
@@ -30,7 +30,7 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		}
 
 	public:
-		StaticSizeMatrix() : Matrix(ROWS, COLUMNS) {
+		StaticSizeMatrix() : Matrix<T, MD>(ROWS, COLUMNS) {
 		}
 
 		template<unsigned ROW, unsigned COL>

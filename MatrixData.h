@@ -219,8 +219,8 @@ class MultiMatrixWrapper : public MatrixData<T> {
 		const std::string wrapName;
 
 		std::deque<MD> copyWrapped() const {
-			std::deque<MD> ret();
-			for (it = this->wrapped.begin(); it != this->wrapped.end(); it++, i++) {
+			std::deque<MD> ret;
+			for (auto it = this->wrapped.begin(); it != this->wrapped.end(); it++) {
 				ret().push_back(it.copy());
 			}
 			return ret;
@@ -427,12 +427,12 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		/**
 		 * @return the number of rows of each block
 		 */
-		unsigned getRowsOfBlocks() const { return wrapped[0].rows(); }
+		unsigned getRowsOfBlocks() const { return this->wrapped[0].rows(); }
 
 		/**
 		 * @return the number of columns of each block
 		 */
-		unsigned getColumnsOfBlocks() const { return wrapped[0].columns(); }
+		unsigned getColumnsOfBlocks() const { return this->wrapped[0].columns(); }
 
 		MATERIALIZE_IMPL
 

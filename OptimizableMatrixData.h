@@ -8,7 +8,7 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(2))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
@@ -47,7 +47,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 		void optimize(ThreadPool *threadPool) const override {
 			if (this->optimized == NULL) {
 				if (this->callOptimizeOnChildren) {
-					MatrixData::optimize(threadPool);
+					MatrixData<T>::optimize(threadPool);
 				}
 				std::unique_lock<std::mutex> lock(this->optimization_mutex);
 				if (!this->isOptimizing) {
