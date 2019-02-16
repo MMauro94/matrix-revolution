@@ -8,19 +8,19 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(4))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(3))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
 	protected:
 		const std::string wrapName;
-		mutable std::mutex optimizationMutex;//Mutex for the optimized variable
+		mutable std::mutex optimizedMutex;//Mutex for the optimized variable
 		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
 		mutable std::condition_variable condition;
 	private:
 		const bool callOptimizeOnChildren;
 		mutable std::shared_ptr<O> optimized = NULL;
-		mutable bool isOptimizing = false;
+		mutable bool optimizeStarted = false;
 		mutable bool alreadyWaitedOptimization = false;
 
 	public:
@@ -47,8 +47,8 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 		void optimize(ThreadPool *threadPool) const override {
 			std::unique_lock<std::mutex> lock(this->optimizeMutex);
-			if (this->optimized == NULL && !this->isOptimizing) {
-				this->isOptimizing = true;
+			if (!this->optimizeStarted) {
+				this->optimizeStarted = true;
 				if (this->callOptimizeOnChildren) {
 					MatrixData<T>::optimize(threadPool);
 				}
@@ -64,12 +64,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 			} else if (optimized->rows() < this->rows() || optimized->columns() < this->columns()) {
 				Utils::error("The optimized matrix should be bigger!");
 			}
+			optimized->optimize(GLOBAL_THREAD_POOL);
 			{
-				std::unique_lock<std::mutex> lock(this->optimizationMutex);
+				std::unique_lock<std::mutex> lock(this->optimizedMutex);
 				this->optimized = optimized;
 				this->condition.notify_all();
 			}
-			this->optimized->optimize(GLOBAL_THREAD_POOL);
 		}
 
 		T get(unsigned int row, unsigned int col) const {
@@ -84,13 +84,6 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 	protected:
 
-		void waitOptimized() const {
-			//Waiting for optimized, it not already done
-			std::unique_lock<std::mutex> lock(this->optimizationMutex);
-			this->condition.wait(lock, [=] { return optimized != NULL; });
-			this->alreadyWaitedOptimization = true;
-		}
-
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
@@ -104,8 +97,11 @@ class OptimizableMatrixData : public MatrixData<T> {
 			if (this->optimized == NULL) {//This if is outside to skip virtual call if unnecessary
 				this->optimize(GLOBAL_THREAD_POOL);
 			}
-			if (!this->alreadyWaitedOptimization) {//This if is outside to skip virtual call if unnecessary
-				this->waitOptimized();
+			if (!this->alreadyWaitedOptimization) {
+				//Waiting for optimized, it not already done
+				std::unique_lock<std::mutex> lock(this->optimizedMutex);
+				this->condition.wait(lock, [=] { return optimized != NULL; });
+				this->alreadyWaitedOptimization = true;
 			}
 			return this->optOptimized();
 		}
