@@ -79,13 +79,6 @@ class MatrixData {
 			}
 		}
 
-		virtual void waitOptimized() const {
-			auto children = this->getChildren();
-			for (auto &child:children) {
-				child->waitOptimized();
-			}
-		}
-
 		void printTree() const {
 			this->printDebugTree("", false);
 		}

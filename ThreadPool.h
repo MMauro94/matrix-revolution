@@ -23,9 +23,6 @@ class ThreadPool {
 		std::condition_variable condition;
 		bool stop = false;
 
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wmissing-noreturn"
-
 		void loop() {
 			while (!this->stop) {
 				std::function<void()> job;
@@ -38,8 +35,6 @@ class ThreadPool {
 				job();
 			}
 		}
-
-#pragma clang diagnostic pop
 
 	public:
 		explicit ThreadPool(unsigned threadCount) : threadCount(threadCount) {
@@ -57,10 +52,8 @@ class ThreadPool {
 		}
 
 		void add(const std::function<void()> &runnable) {
-			{
-				std::unique_lock<std::mutex> lock(this->queue_mutex);
-				this->queue.push_front(runnable);
-			}
+			std::unique_lock<std::mutex> lock(this->queue_mutex);
+			this->queue.push_front(runnable);
 			condition.notify_one();
 		}
 

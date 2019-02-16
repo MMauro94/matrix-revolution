@@ -8,22 +8,18 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(4))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
 	protected:
 		const std::string wrapName;
-		mutable std::mutex optimization_mutex;
+		mutable std::mutex optimizationMutex;//Mutex for the optimized variable
+		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
 		mutable std::condition_variable condition;
 	private:
 		const bool callOptimizeOnChildren;
-		mutable std::shared_ptr<O> optimized = NULL;/*std::shared_ptr<O>(NULL, [=](O *opt) {
-			//This is needed in order to donì't call delete on NULL
-			if (opt != NULL) {
-				delete opt;
-			}
-		});*/
+		mutable std::shared_ptr<O> optimized = NULL;
 		mutable bool isOptimizing = false;
 		mutable bool alreadyWaitedOptimization = false;
 
@@ -50,15 +46,13 @@ class OptimizableMatrixData : public MatrixData<T> {
 		}
 
 		void optimize(ThreadPool *threadPool) const override {
-			if (this->optimized == NULL) {
-				std::unique_lock<std::mutex> lock(this->optimization_mutex);
-				if (!this->isOptimizing) {
-					this->isOptimizing = true;
-					if (this->callOptimizeOnChildren) {
-						MatrixData<T>::optimize(threadPool);
-					}
-					const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization(threadPool);
+			std::unique_lock<std::mutex> lock(this->optimizeMutex);
+			if (this->optimized == NULL && !this->isOptimizing) {
+				this->isOptimizing = true;
+				if (this->callOptimizeOnChildren) {
+					MatrixData<T>::optimize(threadPool);
 				}
+				const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization(threadPool);
 			}
 		}
 
@@ -70,19 +64,16 @@ class OptimizableMatrixData : public MatrixData<T> {
 			} else if (optimized->rows() < this->rows() || optimized->columns() < this->columns()) {
 				Utils::error("The optimized matrix should be bigger!");
 			}
-			this->optimized = optimized;
-			this->condition.notify_all();
+			{
+				std::unique_lock<std::mutex> lock(this->optimizationMutex);
+				this->optimized = optimized;
+				this->condition.notify_all();
+			}
 			this->optimized->optimize(GLOBAL_THREAD_POOL);
 		}
 
 		T get(unsigned int row, unsigned int col) const {
-			if (this->optimized == NULL) {//This if is outside to skip virtual call if unnecessary
-				this->optimize(GLOBAL_THREAD_POOL);
-			}
-			if (!this->alreadyWaitedOptimization) {//This if is outside to skip virtual call if unnecessary
-				this->waitOptimized();
-			}
-			return this->optimized->get(row, col);
+			return this->getOptimized()->get(row, col);
 		}
 
 		MATERIALIZE_IMPL
@@ -91,25 +82,14 @@ class OptimizableMatrixData : public MatrixData<T> {
 			return this->wrapName;
 		}
 
-		void waitOptimized() const override {
-			//Waiting for optimized
-			if (!this->alreadyWaitedOptimization) {
-				if (this->optimized == NULL) {
-					std::unique_lock<std::mutex> lock(this->optimization_mutex);
-					this->condition.wait(lock, [=] { return optimized != NULL; });
-					if (this->optimized == NULL) {
-						Utils::error("Not yet optimized");
-					}
-				}
-				this->optimized->waitOptimized();
-				if (this->callOptimizeOnChildren) {
-					MatrixData<T>::waitOptimized();
-				}
-				this->alreadyWaitedOptimization = true;
-			}
-		}
-
 	protected:
+
+		void waitOptimized() const {
+			//Waiting for optimized, it not already done
+			std::unique_lock<std::mutex> lock(this->optimizationMutex);
+			this->condition.wait(lock, [=] { return optimized != NULL; });
+			this->alreadyWaitedOptimization = true;
+		}
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
@@ -121,8 +101,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 		}
 
 		O *getOptimized() const {
-			this->optimize(GLOBAL_THREAD_POOL);
-			this->waitOptimized();
+			if (this->optimized == NULL) {//This if is outside to skip virtual call if unnecessary
+				this->optimize(GLOBAL_THREAD_POOL);
+			}
+			if (!this->alreadyWaitedOptimization) {//This if is outside to skip virtual call if unnecessary
+				this->waitOptimized();
+			}
 			return this->optOptimized();
 		}
 };

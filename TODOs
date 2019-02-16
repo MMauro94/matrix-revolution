@@ -1,5 +1,6 @@
 Correctness:
 - Check if 858114132 is right
+-Make doOptimization const?
 
 Performances:
 15 february:
