@@ -13,7 +13,7 @@ class Utils {
 	public :
 		static void error(const std::string &errorMessage) {
 			std::cout << errorMessage << std::endl;
-			throw errorMessage;
+			throw std::runtime_error(errorMessage);
 		}
 
 		static unsigned ceilDiv(unsigned a, unsigned b) {

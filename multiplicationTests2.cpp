@@ -54,14 +54,14 @@ int main() {
 	auto multiplication = ((mA + mB) * (mC + mD) * (mE + mF)) + (mG * mH);
 
 
-	clock_t begin = clock();
+	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 	int first = multiplication.getData().get(0, 0);
-	clock_t end = clock();
-	std::cout << "The first element is " << first << ", and it took " << double(end - begin) / CLOCKS_PER_SEC << " seconds" << std::endl;
+	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+	std::cout << "The first element is " << first << ", and it took " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() / 1000.0 << " seconds" << std::endl;
 
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;
 	std::cout << std::endl << std::endl;
-	multiplication.getData().printTree();
+	//multiplication.getData().printTree();
 	std::cout << std::endl << std::endl;
 	std::cout << "Oks" << std::endl;
 

@@ -8,7 +8,7 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(2))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
@@ -18,9 +18,14 @@ class OptimizableMatrixData : public MatrixData<T> {
 		mutable std::condition_variable condition;
 	private:
 		const bool callOptimizeOnChildren;
-		mutable std::shared_ptr<O> optimized = NULL;
+		mutable std::shared_ptr<O> optimized = NULL;/*std::shared_ptr<O>(NULL, [=](O *opt) {
+			//This is needed in order to donì't call delete on NULL
+			if (opt != NULL) {
+				delete opt;
+			}
+		});*/
 		mutable bool isOptimizing = false;
-
+		mutable bool alreadyWaitedOptimization = false;
 
 	public:
 
@@ -71,8 +76,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 		}
 
 		T get(unsigned int row, unsigned int col) const {
-			this->optimize(GLOBAL_THREAD_POOL);
-			this->waitOptimized();
+			if (this->optimized == NULL) {//This if is outside to skip virtual call if unnecessary
+				this->optimize(GLOBAL_THREAD_POOL);
+			}
+			if (!this->alreadyWaitedOptimization) {//This if is outside to skip virtual call if unnecessary
+				this->waitOptimized();
+			}
 			return this->optimized->get(row, col);
 		}
 
@@ -84,15 +93,20 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 		void waitOptimized() const override {
 			//Waiting for optimized
-			std::unique_lock<std::mutex> lock(this->optimization_mutex);
-			this->condition.wait(lock, [=] { return optimized != NULL; });
-			if (this->optimized == NULL) {
-				Utils::error("Not yet optimized");
+			if (!this->alreadyWaitedOptimization) {
+				if (this->optimized == NULL) {
+					std::unique_lock<std::mutex> lock(this->optimization_mutex);
+					this->condition.wait(lock, [=] { return optimized != NULL; });
+					if (this->optimized == NULL) {
+						Utils::error("Not yet optimized");
+					}
+				}
+				this->optimized->waitOptimized();
+				if (this->callOptimizeOnChildren) {
+					MatrixData<T>::waitOptimized();
+				}
+				this->alreadyWaitedOptimization = true;
 			}
-			if (this->callOptimizeOnChildren) {
-				MatrixData<T>::waitOptimized();
-			}
-			this->optimized->waitOptimized();
 		}
 
 	protected:

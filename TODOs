@@ -5,4 +5,5 @@ Performances:
 15 february:
 -14:43: initial version  => 11,16 sec (10cb14c46c0474eeee598f1802ac5b6d875f457c)
 -14:45: The materialization is done less times, but I have to use shared pointers. => 11.026 sec (b0806e82cb06475bcf6b48cbaf1281dda428f2de)
-
+16 February
+-16:54: removed all virtual calls from optimizableMatrixData.get() => 1.88 sec

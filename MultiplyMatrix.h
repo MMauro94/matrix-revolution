@@ -120,9 +120,8 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 
 			//Step 4: the last item in the chain is the multiplication result.
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
-			auto *optimized = static_cast<OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
-
-			this->setOptimized(std::shared_ptr<OptimizedMultiplyMatrix<T>>(optimized));
+			auto *optimized = static_cast<const OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
+			this->setOptimized(std::make_shared<OptimizedMultiplyMatrix<T>>(*optimized));
 		}
 };
 
@@ -140,8 +139,9 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 				  right(right) {
 		}
 
-		//No copy constructor
-		OptimizedMultiplyMatrix(const OptimizedMultiplyMatrix<T> &another) = delete;
+		OptimizedMultiplyMatrix(const OptimizedMultiplyMatrix<T> &another) :
+				OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(another), left(another.left), right(another.right) {
+		}
 
 		//No move constructor
 		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
