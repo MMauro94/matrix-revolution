@@ -110,7 +110,6 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			//Step 4: the last item in the chain is the multiplication result.
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
 			auto *optimized = static_cast<const OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
-			//TODO: make better
 			return std::make_unique<OptimizedMultiplyMatrix<T>>(*optimized);
 		}
 };

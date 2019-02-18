@@ -28,19 +28,28 @@ class OptimizableMatrixData : public MatrixData<T> {
 		OptimizableMatrixData(const OptimizableMatrixData<T, O> &another) :
 				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to copy
+			if (another.optimizedPointer != NULL) {
+				std::cout << "Warning: cached data is lost!\n";
+			}
 		}
 
 		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
 				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to move
+			if (another.optimizedPointer != NULL) {
+				std::cout << "Warning: cached data is lost!\n";
+			}
 		}
 
 		void optimize() const {
-			std::unique_lock<std::mutex> lock(this->optimizeMutex);
+			//This "if" is also outside to skip creating the lock if unnecessary
 			if (!this->optimized.valid()) {
-				this->optimized = std::async(std::launch::async, [=] {
-					return this->doOptimization();
-				}).share();
+				std::unique_lock<std::mutex> lock(this->optimizeMutex);
+				if (!this->optimized.valid()) {
+					this->optimized = std::async(std::launch::async, [=] {
+						return this->doOptimization();
+					}).share();
+				}
 			}
 		}
 
@@ -62,9 +71,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 		virtual std::unique_ptr<O> doOptimization() const = 0;
 
 		O *getOptimized() const {
-			if (!this->optimized.valid()) {//This "if" is outside to skip call if unnecessary
-				this->optimize();
-			}
+			this->optimize();
 			if (this->optimizedPointer == NULL) {
 				//Waiting for optimized, it not already done.
 				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
