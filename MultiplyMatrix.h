@@ -41,7 +41,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>("Unoptimized multiplication", left.rows(), right.columns(), false),
+		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>("Unoptimized multiplication", left.rows(), right.columns()),
 											  left(left),
 											  right(right) {
 			if (left.columns() != right.rows()) {
@@ -55,10 +55,10 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
-		void printDebugTree(const std::string &prefix, bool isLeft) const override {
+		/*void printDebugTree(const std::string &prefix, bool isLeft) const override {
 			//I print the optimized tree, not the optimized one
 			this->doPrintDebugTree(prefix, isLeft, {this->getOptimized()});
-		};
+		};*/
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
 			return {&this->left, &this->right};
@@ -75,19 +75,15 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		 * Adds it child to the multiplication chain
 		 */
 		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
-			if (this->optOptimized() != NULL) {
-				multiplicationChain.push_back(this->optOptimized());
-			} else {
-				this->left.addToMultiplicationChain(multiplicationChain);
-				this->right.addToMultiplicationChain(multiplicationChain);
-			};
+			this->left.addToMultiplicationChain(multiplicationChain);
+			this->right.addToMultiplicationChain(multiplicationChain);
 		}
 
 		/**
 		 * This method optimizes the multiplication tree, by doing first the multiplication that reduces the most
 		 * the number of dimensions
 		 */
-		std::shared_ptr<OptimizedMultiplyMatrix<T>> doOptimization() override {
+		std::unique_ptr<OptimizedMultiplyMatrix<T>> doOptimization() override {
 			//Step 1: getting the chain of multiplications to perform
 			std::vector<MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
@@ -114,7 +110,8 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			//Step 4: the last item in the chain is the multiplication result.
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
 			auto *optimized = static_cast<const OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
-			return std::make_shared<OptimizedMultiplyMatrix<T>>(*optimized);
+			//TODO: make better
+			return std::make_unique<OptimizedMultiplyMatrix<T>>(*optimized);
 		}
 };
 
@@ -127,7 +124,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		MatrixData<T> *left, *right;
 	public:
 		OptimizedMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
-				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns(), true),
+				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns()),
 				  left(left),
 				  right(right) {
 		}
@@ -139,18 +136,13 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 		//No move constructor
 		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
 
-		void printDebugTree(const std::string &prefix, bool isLeft) const override {
-			//I print the optimized tree, not the optimized one
-			this->doPrintDebugTree(prefix, isLeft, {this->getOptimized()});
-		};
-
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
 			return {this->left, this->right};
 		}
 
 	protected:
 
-		std::shared_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> doOptimization() {
+		std::unique_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> doOptimization() {
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
 			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
@@ -181,7 +173,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 				}
 			}
 			//optimized is LARGER or equal to this matrix, but that's not a problem
-			return std::make_shared<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
+			return std::make_unique<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
 																									  numberOfGridColsB * colsOfGridB);
 		}
 
@@ -220,7 +212,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, right;
 	public:
 		BaseMultiplyMatrix(std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>>("Multiplication", left->rows(), right->columns(), true), left(left), right(right) {
+				: OptimizableMatrixData<T, VectorMatrixData<T>>("Multiplication", left->rows(), right->columns()), left(left), right(right) {
 		}
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
@@ -229,9 +221,9 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	protected:
 
-		std::shared_ptr<VectorMatrixData<T>> doOptimization() override {
+		std::unique_ptr<VectorMatrixData<T>> doOptimization() override {
 			std::cout << "Multiplying...\n";
-			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
+			std::unique_ptr<VectorMatrixData<T>> ret = std::make_unique<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			//ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {

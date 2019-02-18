@@ -6,61 +6,57 @@
 #define MATRIX_OPERATIONNODEMATRIXDATA_H
 
 #include <deque>
+#include <future>
 #include "MatrixData.h"
-
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(3))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
 	protected:
 		const std::string wrapName;
-		mutable std::mutex optimizedMutex;//Mutex for the optimized variable
 		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
-		mutable std::condition_variable condition;
 	private:
-		const bool callOptimizeOnChildren;
-		mutable std::shared_ptr<O> optimized = NULL;
-		mutable bool optimizeStarted = false;
+		mutable std::shared_future<std::unique_ptr<O>> optimized;
+		mutable O *optimizedPointer = NULL;
 		mutable bool alreadyWaitedOptimization = false;
 
 	public:
 
-		OptimizableMatrixData(const std::string wrapName, unsigned int rows, unsigned int columns, bool callOptimizeOnChildren) :
-				MatrixData<T>(rows, columns), wrapName(wrapName), callOptimizeOnChildren(callOptimizeOnChildren) {
+		OptimizableMatrixData(const std::string wrapName, unsigned int rows, unsigned int columns) :
+				MatrixData<T>(rows, columns), wrapName(wrapName) {
 		}
 
 		OptimizableMatrixData(const OptimizableMatrixData<T, O> &another) :
-				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName), callOptimizeOnChildren(another.callOptimizeOnChildren) {
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to copy
-			if (this->optimized != NULL) {
-				std::cout << "Warning: losing optimized matrix!\n";
-			}
 		}
 
 		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
-				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName), callOptimizeOnChildren(another.callOptimizeOnChildren) {
+				MatrixData<T>(another.rows(), another.columns()), wrapName(another.wrapName) {
 			//The cached data is not passed around, since it will be too difficult to move
-			if (this->optimized != NULL) {
-				std::cout << "Warning: losing optimized matrix!\n";
-			}
 		}
 
 		void optimize(ThreadPool *threadPool) const override {
 			std::unique_lock<std::mutex> lock(this->optimizeMutex);
-			if (!this->optimizeStarted) {
-				this->optimizeStarted = true;
-				if (this->callOptimizeOnChildren) {
-					MatrixData<T>::optimize(threadPool);
-				}
-				threadPool->add([=] {
-					auto optimized = const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
-					this->setOptimized(optimized);
-				});
+			if (!this->optimized.valid()) {
+				this->optimized = std::async(std::launch::async, [=] {
+					auto opt = const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
+					opt->optimize(NULL);
+					return opt;
+				}).share();
 			}
 		}
 
 		T get(unsigned int row, unsigned int col) const {
-			return this->getOptimized()->get(row, col);
+			if (!this->optimized.valid()) {//This "if" is outside to skip virtual call if unnecessary
+				//TODO: wait until fully optimized
+				this->optimize(NULL);
+			}
+			if (!this->alreadyWaitedOptimization) {
+				//Waiting for optimized, it not already done
+				this->optimizedPointer = this->optimized.get().get();
+				this->alreadyWaitedOptimization = true;
+			}
+			return this->optimizedPointer->get(row, col);
 		}
 
 		MATERIALIZE_IMPL
@@ -69,47 +65,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 			return this->wrapName;
 		}
 
-	private:
-
-		void setOptimized(std::shared_ptr<O> optimized) const {
-			if (this->optimized != NULL) {
-				Utils::error("Matrix already optimized!");
-			} else if (optimized == NULL) {
-				Utils::error("Optimized cannot be NULL!");
-			} else if (optimized->rows() < this->rows() || optimized->columns() < this->columns()) {
-				Utils::error("The optimized matrix should be bigger!");
-			}
-			optimized->optimize(GLOBAL_THREAD_POOL);
-			{
-				std::unique_lock<std::mutex> lock(this->optimizedMutex);
-				this->optimized = optimized;
-				this->condition.notify_all();
-			}
-		}
-
 	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
-		virtual std::shared_ptr<O> doOptimization() = 0;
-
-		O *optOptimized() const {
-			return this->optimized.get();
-		}
-
-		O *getOptimized() const {
-			if (this->optimized == NULL) {//This "if" is outside to skip virtual call if unnecessary
-				this->optimize(GLOBAL_THREAD_POOL);
-			}
-			if (!this->alreadyWaitedOptimization) {
-				//Waiting for optimized, it not already done
-				std::unique_lock<std::mutex> lock(this->optimizedMutex);
-				this->condition.wait(lock, [=] { return optimized != NULL; });
-				this->alreadyWaitedOptimization = true;
-			}
-			return this->optOptimized();
-		}
+		virtual std::unique_ptr<O> doOptimization() = 0;
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H

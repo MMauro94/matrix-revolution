@@ -10,3 +10,4 @@ Performances:
 -16:54: removed all virtual calls from optimizableMatrixData.get() => 1.88 sec
 18 february
 -10:26: not calling optimize on children of Concatenate matrix => 1.5 sec (16b959d3e56b27ad5f59f02160fb540968a99293)
+-11:55: using std::async => 1.2 sec
