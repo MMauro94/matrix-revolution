@@ -20,11 +20,9 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		}
 
 	protected:
-		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] {
-				auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
-				this->setOptimized(std::make_unique<VectorMatrixData<T>>(materialized));
-			});
+		void doOptimization() override {
+			auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
+			this->setOptimized(std::make_unique<VectorMatrixData<T>>(materialized));
 		}
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {

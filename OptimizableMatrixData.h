@@ -8,7 +8,7 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(3))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
@@ -52,7 +52,9 @@ class OptimizableMatrixData : public MatrixData<T> {
 				if (this->callOptimizeOnChildren) {
 					MatrixData<T>::optimize(threadPool);
 				}
-				const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization(threadPool);
+				threadPool->add([=]{
+					const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
+				});
 			}
 		}
 
@@ -87,14 +89,14 @@ class OptimizableMatrixData : public MatrixData<T> {
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
-		virtual void doOptimization(ThreadPool *threadPool) = 0;
+		virtual void doOptimization() = 0;
 
 		O *optOptimized() const {
 			return this->optimized.get();
 		}
 
 		O *getOptimized() const {
-			if (this->optimized == NULL) {//This if is outside to skip virtual call if unnecessary
+			if (this->optimized == NULL) {//This "if" is outside to skip virtual call if unnecessary
 				this->optimize(GLOBAL_THREAD_POOL);
 			}
 			if (!this->alreadyWaitedOptimization) {

@@ -72,15 +72,6 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 	protected:
 
 		/**
-		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
-		 */
-		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] {
-				doSerialOptimization();
-			});
-		}
-
-		/**
 		 * Adds it child to the multiplication chain
 		 */
 		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
@@ -92,9 +83,11 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			};
 		}
 
-	private:
-
-		void doSerialOptimization() {
+		/**
+		 * This method optimizes the multiplication tree, by doing first the multiplication that reduces the most
+		 * the number of dimensions
+		 */
+		void doOptimization() override {
 			//Step 1: getting the chain of multiplications to perform
 			std::vector<MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
@@ -157,38 +150,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 
 	protected:
 
-		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] { multiply(threadPool); });
-		}
-
-	private:
-
-		std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>>
-		divideInBlocks(MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) {
-			//e.g. matrix is 202x302;
-			//numberOfGridRows = 3
-			// numberOfGridCols = 4
-			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
-			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
-			std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>> ret;
-			for (unsigned r = 0; r < numberOfGridRows; r++) {
-				for (unsigned c = 0; c < numberOfGridCols; c++) {
-					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
-					unsigned blockRowEnd = std::min(((r + 1) * rowsOfGrid), matrix->rows());//68, 136, 202
-					unsigned blockColStart = c * colsOfGrid;//0, 76, 152, 228
-					unsigned blockColEnd = std::min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
-					unsigned int blockRows = blockRowEnd - blockRowStart;
-					unsigned int blockCols = blockColEnd - blockColStart;
-
-					MatrixMaterializer<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
-					//I wrap the matrix in a MatrixResizer to make sure every block is of the same size
-					ret.push_back(std::make_shared<MatrixResizer<T, MatrixMaterializer<T>>>(block, rowsOfGrid, colsOfGrid));
-				}
-			}
-			return ret;
-		}
-
-		void multiply(ThreadPool *threadPool) {
+		void doOptimization() {
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
 			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
@@ -223,6 +185,34 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 																												numberOfGridColsB * colsOfGridB);
 			this->setOptimized(optimized);
 		}
+
+	private:
+
+		std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>>
+		divideInBlocks(MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) {
+			//e.g. matrix is 202x302;
+			//numberOfGridRows = 3
+			// numberOfGridCols = 4
+			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
+			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
+			std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>> ret;
+			for (unsigned r = 0; r < numberOfGridRows; r++) {
+				for (unsigned c = 0; c < numberOfGridCols; c++) {
+					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
+					unsigned blockRowEnd = std::min(((r + 1) * rowsOfGrid), matrix->rows());//68, 136, 202
+					unsigned blockColStart = c * colsOfGrid;//0, 76, 152, 228
+					unsigned blockColEnd = std::min(((c + 1) * colsOfGrid), matrix->columns());//76, 152, 228, 302
+					unsigned int blockRows = blockRowEnd - blockRowStart;
+					unsigned int blockCols = blockColEnd - blockColStart;
+
+					MatrixMaterializer<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
+					//I wrap the matrix in a MatrixResizer to make sure every block is of the same size
+					ret.push_back(std::make_shared<MatrixResizer<T, MatrixMaterializer<T>>>(block, rowsOfGrid, colsOfGrid));
+				}
+			}
+			return ret;
+		}
+
 };
 
 template<typename T>
@@ -240,13 +230,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	protected:
 
-		void doOptimization(ThreadPool *threadPool) override {
-			threadPool->add([=] { doSerialOptimization(); });
-		}
-
-	private:
-
-		void doSerialOptimization() {
+		void doOptimization() override {
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			//ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {

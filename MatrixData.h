@@ -405,6 +405,10 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			}
 		}
 
+		void optimize(ThreadPool *threadPool) const override {
+			//I don't call optimize on children, since it may be useless to optimize all the blocks
+		}
+
 		T get(unsigned row, unsigned col) const {
 			unsigned blockRows = this->getRowsOfBlocks();
 			unsigned blockCols = this->getColumnsOfBlocks();
