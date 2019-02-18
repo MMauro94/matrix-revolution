@@ -55,10 +55,10 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
-		/*void printDebugTree(const std::string &prefix, bool isLeft) const override {
+		void printDebugTree(const std::string &prefix, bool isLeft) const override {
 			//I print the optimized tree, not the optimized one
 			this->doPrintDebugTree(prefix, isLeft, {this->getOptimized()});
-		};*/
+		};
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
 			return {&this->left, &this->right};

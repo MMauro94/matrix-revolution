@@ -20,14 +20,17 @@ int main() {
 	initializeCells(mA, "A", 12, 5);
 	StaticSizeMatrix<400, 500, long> mB;
 	initializeCells(mB, "B", 7, 13);
+
 	StaticSizeMatrix<500, 200, long> mC;
 	initializeCells(mC, "C", 3, 8);
 	StaticSizeMatrix<500, 200, long> mD;
 	initializeCells(mD, "D", 4, 7);
+
 	StaticSizeMatrix<200, 400, long> mE;
 	initializeCells(mE, "E", 8, 9);
 	StaticSizeMatrix<200, 400, long> mF;
 	initializeCells(mF, "F", 5, 11);
+
 	StaticSizeMatrix<400, 101, long> mG;
 	initializeCells(mG, "G", 54, 11);
 	StaticSizeMatrix<101, 400, long> mH;
@@ -61,7 +64,7 @@ int main() {
 
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;
 	std::cout << std::endl << std::endl;
-	//multiplication.getData().printTree();
+	multiplication.getData().printTree();
 	std::cout << std::endl << std::endl;
 	std::cout << "Oks" << std::endl;
 

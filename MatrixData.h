@@ -5,7 +5,8 @@
 #include <vector>
 #include <algorithm>
 #include <tuple>
-#include "ThreadPool.h"
+#include <deque>
+#include "Utils.h"
 
 template<typename T>
 class VectorMatrixData;
@@ -71,13 +72,6 @@ class MatrixData {
 		}
 
 		virtual VectorMatrixData<T> materialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const = 0;
-
-		virtual void optimize(ThreadPool *threadPool) const {
-			auto children = this->getChildren();
-			for (auto &child:children) {
-				child->optimize(threadPool);
-			}
-		}
 
 		void printTree() const {
 			this->printDebugTree("", false);
@@ -403,10 +397,6 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			} else if ((rows / blockRows) * (columns / blockCols) != blocks.size()) {
 				Utils::error("The number of blocks (" + std::to_string(blocks.size()) + ") is not enough to cover the whole matrix");
 			}
-		}
-
-		void optimize(ThreadPool *threadPool) const override {
-			//I don't call optimize on children, since it may be useless to optimize all the blocks
 		}
 
 		T get(unsigned row, unsigned col) const {

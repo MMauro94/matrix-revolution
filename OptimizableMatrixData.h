@@ -16,8 +16,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
 	private:
 		mutable std::shared_future<std::unique_ptr<O>> optimized;
-		mutable O *optimizedPointer = NULL;
-		mutable bool alreadyWaitedOptimization = false;
+		mutable O *optimizedPointer = NULL;//Saving the pointer to optimized in order to skip accessing optimizzed through a future and a unique_ptr
 
 	public:
 
@@ -35,28 +34,17 @@ class OptimizableMatrixData : public MatrixData<T> {
 			//The cached data is not passed around, since it will be too difficult to move
 		}
 
-		void optimize(ThreadPool *threadPool) const override {
+		void optimize() const {
 			std::unique_lock<std::mutex> lock(this->optimizeMutex);
 			if (!this->optimized.valid()) {
 				this->optimized = std::async(std::launch::async, [=] {
-					auto opt = this->doOptimization();
-					opt->optimize(NULL);
-					return opt;
+					return this->doOptimization();
 				}).share();
 			}
 		}
 
 		T get(unsigned int row, unsigned int col) const {
-			if (!this->optimized.valid()) {//This "if" is outside to skip virtual call if unnecessary
-				//TODO: wait until fully optimized
-				this->optimize(NULL);
-			}
-			if (!this->alreadyWaitedOptimization) {
-				//Waiting for optimized, it not already done
-				this->optimizedPointer = this->optimized.get().get();
-				this->alreadyWaitedOptimization = true;
-			}
-			return this->optimizedPointer->get(row, col);
+			return getOptimized()->get(row, col);
 		}
 
 		MATERIALIZE_IMPL
@@ -71,6 +59,17 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		virtual std::unique_ptr<O> doOptimization() const = 0;
+
+		O *getOptimized() const {
+			if (!this->optimized.valid()) {//This "if" is outside to skip call if unnecessary
+				this->optimize();
+			}
+			if (this->optimizedPointer == NULL) {
+				//Waiting for optimized, it not already done
+				optimizedPointer = optimized.get().get();
+			}
+			return optimizedPointer;
+		}
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H
