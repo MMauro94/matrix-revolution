@@ -8,7 +8,7 @@
 #include <deque>
 #include "MatrixData.h"
 
-ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(100))->start();
+ThreadPool *GLOBAL_THREAD_POOL = (new ThreadPool(3))->start();
 
 template<typename T, class O>
 class OptimizableMatrixData : public MatrixData<T> {
@@ -52,11 +52,24 @@ class OptimizableMatrixData : public MatrixData<T> {
 				if (this->callOptimizeOnChildren) {
 					MatrixData<T>::optimize(threadPool);
 				}
-				threadPool->add([=]{
-					const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
+				threadPool->add([=] {
+					auto optimized = const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
+					this->setOptimized(optimized);
 				});
 			}
 		}
+
+		T get(unsigned int row, unsigned int col) const {
+			return this->getOptimized()->get(row, col);
+		}
+
+		MATERIALIZE_IMPL
+
+		virtual const std::string getDebugName() const override {
+			return this->wrapName;
+		}
+
+	private:
 
 		void setOptimized(std::shared_ptr<O> optimized) const {
 			if (this->optimized != NULL) {
@@ -74,22 +87,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 			}
 		}
 
-		T get(unsigned int row, unsigned int col) const {
-			return this->getOptimized()->get(row, col);
-		}
-
-		MATERIALIZE_IMPL
-
-		virtual const std::string getDebugName() const override {
-			return this->wrapName;
-		}
-
 	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
-		virtual void doOptimization() = 0;
+		virtual std::shared_ptr<O> doOptimization() = 0;
 
 		O *optOptimized() const {
 			return this->optimized.get();

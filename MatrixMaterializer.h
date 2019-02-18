@@ -20,9 +20,9 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		}
 
 	protected:
-		void doOptimization() override {
+		std::shared_ptr<VectorMatrixData<T>> doOptimization() override {
 			auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
-			this->setOptimized(std::make_unique<VectorMatrixData<T>>(materialized));
+			return std::make_unique<VectorMatrixData<T>>(materialized);
 		}
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {

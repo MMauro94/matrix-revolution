@@ -87,7 +87,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		 * This method optimizes the multiplication tree, by doing first the multiplication that reduces the most
 		 * the number of dimensions
 		 */
-		void doOptimization() override {
+		std::shared_ptr<OptimizedMultiplyMatrix<T>> doOptimization() override {
 			//Step 1: getting the chain of multiplications to perform
 			std::vector<MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
@@ -114,7 +114,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			//Step 4: the last item in the chain is the multiplication result.
 			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
 			auto *optimized = static_cast<const OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
-			this->setOptimized(std::make_shared<OptimizedMultiplyMatrix<T>>(*optimized));
+			return std::make_shared<OptimizedMultiplyMatrix<T>>(*optimized);
 		}
 };
 
@@ -150,7 +150,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 
 	protected:
 
-		void doOptimization() {
+		std::shared_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> doOptimization() {
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
 			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
@@ -181,9 +181,8 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 				}
 			}
 			//optimized is LARGER or equal to this matrix, but that's not a problem
-			auto optimized = std::make_shared<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
-																												numberOfGridColsB * colsOfGridB);
-			this->setOptimized(optimized);
+			return std::make_shared<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
+																									  numberOfGridColsB * colsOfGridB);
 		}
 
 	private:
@@ -230,7 +229,8 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	protected:
 
-		void doOptimization() override {
+		std::shared_ptr<VectorMatrixData<T>> doOptimization() override {
+			std::cout << "Multiplying...\n";
 			std::shared_ptr<VectorMatrixData<T>> ret = std::make_shared<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			//ret->setDebugName("Multiplication result");
 			for (unsigned int r = 0; r < ret->rows(); r++) {
@@ -242,7 +242,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 					ret->set(r, c, sum);
 				}
 			}
-			this->setOptimized(ret);
+			return ret;
 		}
 };
 
