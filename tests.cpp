@@ -175,11 +175,11 @@ void test(Matrix<T, MD> &m) {
 
 void testMultiplicationAndAddition() {
 	StaticSizeMatrix<4, 3, int> m1;
-	Matrix<double> m2(4, 3);
+	Matrix<int> m2(4, 3);
 	Matrix<int> m3(3, 5);
 	StaticSizeMatrix<5, 6, int> m4;
 	initializeCells(m1, 12, 5);
-	initializeCells<double>(m2, 11, 7);
+	initializeCells<int>(m2, 11, 7);
 	initializeCells(m3, 7, 13);
 	initializeCells(m4, 8, 2);
 	auto sum1a = m1 + m2;
@@ -195,8 +195,8 @@ void testMultiplicationAndAddition() {
 	//m4.print("%02d");
 	//multiplication1c.print("%04d");
 	assert<int>(92, sum1c.get<3, 2>());
-	assert<double>(93, sum1a(3, 2));
-	assert<double>(93, sum1b(3, 2));
+	assert<int>(93, sum1a(3, 2));
+	assert<int>(93, sum1b(3, 2));
 	//assertEquals(sum1a, sum1b);
 	assert<int>(7327, multiplication1a(3, 4));
 	assert<int>(5040, multiplication1c(2, 2));

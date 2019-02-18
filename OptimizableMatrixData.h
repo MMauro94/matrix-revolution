@@ -16,7 +16,8 @@ class OptimizableMatrixData : public MatrixData<T> {
 		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
 	private:
 		mutable std::shared_future<std::unique_ptr<O>> optimized;
-		mutable O *optimizedPointer = NULL;//Saving the pointer to optimized in order to skip accessing optimizzed through a future and a unique_ptr
+		//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
+		mutable O *optimizedPointer = NULL;
 
 	public:
 
@@ -65,7 +66,8 @@ class OptimizableMatrixData : public MatrixData<T> {
 				this->optimize();
 			}
 			if (this->optimizedPointer == NULL) {
-				//Waiting for optimized, it not already done
+				//Waiting for optimized, it not already done.
+				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
 				optimizedPointer = optimized.get().get();
 			}
 			return optimizedPointer;

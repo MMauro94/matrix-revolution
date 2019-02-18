@@ -35,13 +35,13 @@ void assertEqual(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 }
 
 int main() {
-	StaticSizeMatrix<4, 9, double> mAd;
+	StaticSizeMatrix<4, 9, int> mAd;
 	StaticSizeMatrix<4, 9, int> mA;
 	StaticSizeMatrix<9, 7, int> mB;
 	StaticSizeMatrix<7, 8, int> mC;
 	StaticSizeMatrix<8, 2, int> mD;
 	initializeCells(mA, 12, 5);
-	initializeCells<double>(mAd, 12, 5);
+	initializeCells<int>(mAd, 12, 5);
 
 	initializeCells(mB, 7, 13);
 	initializeCells(mC, 3, 8);

@@ -102,11 +102,11 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		/**
 		 * Multiplies the two given matrices
 		 */
-		template<unsigned C, typename U, class MD2>
-		const StaticSizeMatrix<ROWS, C, decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>>
-		operator*(const StaticSizeMatrix<COLUMNS, C, U, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, C, decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>>(
-					MultiplyMatrix<decltype(T() * U()), MD, MD2>(this->data, another.data));
+		template<unsigned C, class MD2>
+		const StaticSizeMatrix<ROWS, C, T, MultiplyMatrix<T, MD, MD2>>
+		operator*(const StaticSizeMatrix<COLUMNS, C, T, MD2> &another) const {
+			return StaticSizeMatrix<ROWS, C, T, MultiplyMatrix<T, MD, MD2>>(
+					MultiplyMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
 		using Matrix<T, MD>::operator*;
@@ -115,19 +115,19 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		/**
 		 * Adds the two given matrices
 		 */
-		template<typename U, class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>
-		operator+(const StaticSizeMatrix<ROWS, COLUMNS, U, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
-					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
+		template<class MD2>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>
+		operator+(const StaticSizeMatrix<ROWS, COLUMNS, T, MD2> &another) const {
+			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>(
+					SumMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
 
-		template<typename U, class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>
-		operator+(const Matrix<U, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
-					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
+		template<class MD2>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>
+		operator+(const Matrix<T, MD2> &another) const {
+			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>(
+					SumMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
 		StaticSizeMatrix<ROWS, COLUMNS, T, VectorMatrixData<T>> copy() const {

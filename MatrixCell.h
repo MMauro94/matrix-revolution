@@ -25,7 +25,8 @@ class MatrixCell {
 		/** Deleted because it would have allowed to make a <code>const MatrixCell&lt;T&gt;</code> non constant */
 		MatrixCell(const MatrixCell<T, MD> &) = delete; //Copy constructor
 
-		MatrixCell(MatrixCell<T, MD> &&) noexcept = default; //Move constructor
+		//TODO: capire perchè non funziona il  noexcept
+		MatrixCell(MatrixCell<T, MD> &&) = default; //Move constructor
 
 
 

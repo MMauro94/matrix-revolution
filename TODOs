@@ -10,3 +10,4 @@ Performances:
 18 february
 -10:26: not calling optimize on children of Concatenate matrix => 1.5 sec (16b959d3e56b27ad5f59f02160fb540968a99293)
 -11:55: using std::async => 1.2 sec (91dcef68a65a3c702b8a74f44456edc6e58d2c9d)
+-12:47: using -O3. Not comparable to the results above, but further benchmarks will be more indicative or real world performances => 0.09 sec

@@ -139,24 +139,24 @@ class Matrix {
 		/**
 		 * Multiplies the two given matrices
 		 */
-		template<typename U, class MD2>
-		const Matrix<decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>> operator*(const Matrix<U, MD2> &another) const {
-			return Matrix<decltype(T() * U()), MultiplyMatrix<decltype(T() * U()), MD, MD2>>(
-					MultiplyMatrix<decltype(T() * U()), MD, MD2>(this->data, another.data));
+		template<class MD2>
+		const Matrix<T, MultiplyMatrix<T, MD, MD2>> operator*(const Matrix<T, MD2> &another) const {
+			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(
+					MultiplyMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
 		/**
 		 * Adds the two given matrices
 		 */
-		template<typename U, class MD2>
-		const Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>> operator+(const Matrix<U, MD2> &another) const {
-			return Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>>(
-					SumMatrix<decltype(T() + U()), MD, MD2>(this->data, another.data));
+		template<class MD2>
+		const Matrix<T, SumMatrix<T, MD, MD2>> operator+(const Matrix<T, MD2> &another) const {
+			return Matrix<T, SumMatrix<T, MD, MD2>>(
+					SumMatrix<T, MD, MD2>(this->data, another.data));
 		}
 
-		template<unsigned ROWS, unsigned COLUMNS, typename U, class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, decltype(T() + U()), SumMatrix<decltype(T() + U()), MD2, MD>>
-		operator+(const StaticSizeMatrix<ROWS, COLUMNS, U, MD2> &another) const {
+		template<unsigned ROWS, unsigned COLUMNS, class MD2>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD2, MD>>
+		operator+(const StaticSizeMatrix<ROWS, COLUMNS, T, MD2> &another) const {
 			return another + (*this);
 		}
 

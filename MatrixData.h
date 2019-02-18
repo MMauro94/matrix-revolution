@@ -198,7 +198,9 @@ class BiMatrixWrapper : public MatrixData<T> {
 		}
 
 		virtual std::vector<const MatrixData<T> *> getChildren() const {
-			return {&this->left, &this->right};
+			const MatrixData<T> *left = &this->left;
+			const MatrixData<T> *right = &this->right;
+			return {left, right};
 		}
 };
 
@@ -341,7 +343,7 @@ template<typename T, class MD>
 class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 	public:
 
-		explicit DiagonalMatrixMD(MD wrapped) : SingleMatrixWrapper<T, MD>("Diagonal", wrapped.rows(), wrapped.rows()) {
+		explicit DiagonalMatrixMD(MD wrapped) : SingleMatrixWrapper<T, MD>("Diagonal", wrapped, wrapped.rows(), wrapped.rows()) {
 			if (wrapped.columns() != 1) {
 				Utils::error("diagonalMatrix() can only be called on vectors (nx1 matrices)");
 			}
