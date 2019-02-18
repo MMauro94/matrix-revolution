@@ -74,7 +74,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		/**
 		 * Adds it child to the multiplication chain
 		 */
-		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
+		void addToMultiplicationChain(std::vector<const MatrixData<T> *> &multiplicationChain) const {
 			this->left.addToMultiplicationChain(multiplicationChain);
 			this->right.addToMultiplicationChain(multiplicationChain);
 		}
@@ -83,9 +83,9 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		 * This method optimizes the multiplication tree, by doing first the multiplication that reduces the most
 		 * the number of dimensions
 		 */
-		std::unique_ptr<OptimizedMultiplyMatrix<T>> doOptimization() override {
+		std::unique_ptr<OptimizedMultiplyMatrix<T>> doOptimization() const override {
 			//Step 1: getting the chain of multiplications to perform
-			std::vector<MatrixData<T> *> multiplicationChain;
+			std::vector<const MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
 			//Step 3: execute the multiplications in an efficient order, until a single matrix is left
 			while (multiplicationChain.size() > 1) {
@@ -96,8 +96,8 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 						bestIndex = i;
 					}
 				}
-				MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
-				MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
+				const MatrixData<T> *leftMatrix = multiplicationChain[bestIndex];
+				const MatrixData<T> *rightMatrix = multiplicationChain[bestIndex + 1];
 
 				//Step 3b: replacing the two matrices in the chain with the computed product
 				//Creating the multiplication inside nodeReferences
@@ -121,9 +121,9 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 template<typename T>
 class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> {
 	private:
-		MatrixData<T> *left, *right;
+		const MatrixData<T> *left, *right;
 	public:
-		OptimizedMultiplyMatrix(MatrixData<T> *left, MatrixData<T> *right)
+		OptimizedMultiplyMatrix(const MatrixData<T> *left, const MatrixData<T> *right)
 				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>("Optimized multiplication", left->rows(), right->columns()),
 				  left(left),
 				  right(right) {
@@ -142,7 +142,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 
 	protected:
 
-		std::unique_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> doOptimization() {
+		std::unique_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> doOptimization() const override {
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
 			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
@@ -180,7 +180,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 	private:
 
 		std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>>
-		divideInBlocks(MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) {
+		divideInBlocks(const MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) const {
 			//e.g. matrix is 202x302;
 			//numberOfGridRows = 3
 			// numberOfGridCols = 4
@@ -221,7 +221,7 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	protected:
 
-		std::unique_ptr<VectorMatrixData<T>> doOptimization() override {
+		std::unique_ptr<VectorMatrixData<T>> doOptimization() const override {
 			std::cout << "Multiplying...\n";
 			std::unique_ptr<VectorMatrixData<T>> ret = std::make_unique<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
 			//ret->setDebugName("Multiplication result");

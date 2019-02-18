@@ -39,7 +39,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 			std::unique_lock<std::mutex> lock(this->optimizeMutex);
 			if (!this->optimized.valid()) {
 				this->optimized = std::async(std::launch::async, [=] {
-					auto opt = const_cast<OptimizableMatrixData<T, O> *>(this)->doOptimization();
+					auto opt = this->doOptimization();
 					opt->optimize(NULL);
 					return opt;
 				}).share();
@@ -70,7 +70,7 @@ class OptimizableMatrixData : public MatrixData<T> {
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
-		virtual std::unique_ptr<O> doOptimization() = 0;
+		virtual std::unique_ptr<O> doOptimization() const = 0;
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H

@@ -47,7 +47,7 @@ class MatrixData {
 		/**
 		 * Adds itself to the multiplication chain
 		 */
-		void addToMultiplicationChain(std::vector<MatrixData<T> *> &multiplicationChain) {
+		void addToMultiplicationChain(std::vector<const MatrixData<T> *> &multiplicationChain) const {
 			multiplicationChain.push_back(this);
 		}
 
@@ -406,7 +406,6 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		}
 
 		void optimize(ThreadPool *threadPool) const override {
-			//TODO: optimized MUST be called to avoid infinite waits on get()
 			//I don't call optimize on children, since it may be useless to optimize all the blocks
 		}
 

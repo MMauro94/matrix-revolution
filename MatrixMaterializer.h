@@ -11,16 +11,16 @@
 template<typename T>
 class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> {
 	private:
-		MatrixData<T> *wrapped;
+		const MatrixData<T> *wrapped;
 		unsigned rowOffset, colOffset;
 
 	public:
-		MatrixMaterializer(MatrixData<T> *wrapped, unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns)
+		MatrixMaterializer(const MatrixData<T> *wrapped, unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns)
 				: OptimizableMatrixData<T, VectorMatrixData<T>>("Materializer", rows, columns), rowOffset(rowOffset), colOffset(colOffset), wrapped(wrapped) {
 		}
 
 	protected:
-		std::unique_ptr<VectorMatrixData<T>> doOptimization() override {
+		std::unique_ptr<VectorMatrixData<T>> doOptimization() const override {
 			auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
 			return std::make_unique<VectorMatrixData<T>>(materialized);
 		}
