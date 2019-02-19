@@ -16,16 +16,16 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	public:
 		MatrixMaterializer(const MatrixData<T> *wrapped, unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns)
-				: OptimizableMatrixData<T, VectorMatrixData<T>>("Materializer", rows, columns), rowOffset(rowOffset), colOffset(colOffset), wrapped(wrapped) {
+				: OptimizableMatrixData<T, VectorMatrixData<T>>(rows, columns), rowOffset(rowOffset), colOffset(colOffset), wrapped(wrapped) {
 		}
 
 	protected:
-		std::unique_ptr<VectorMatrixData<T>> doOptimization() const override {
-			auto materialized = this->wrapped->materialize(rowOffset, colOffset, this->rows(), this->columns());
+		std::unique_ptr<VectorMatrixData<T>> virtualCreateOptimizedMatrix() const override {
+			auto materialized = this->wrapped->virtualMaterialize(rowOffset, colOffset, this->rows(), this->columns());
 			return std::make_unique<VectorMatrixData<T>>(materialized);
 		}
 
-		virtual std::vector<const MatrixData<T> *> getChildren() const {
+		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
 			return {this->wrapped};
 		}
 };

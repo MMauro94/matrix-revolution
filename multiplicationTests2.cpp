@@ -7,7 +7,7 @@
 
 template<class MD>
 void initializeCells(Matrix<long, MD> &m, std::string debugName, long rowMultiplier, long colMultiplier) {
-	m.getData().setDebugName(debugName);
+	//m.getData().setDebugName(debugName);
 	for (unsigned row = 0; row < m.rows(); ++row) {
 		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
@@ -16,14 +16,14 @@ void initializeCells(Matrix<long, MD> &m, std::string debugName, long rowMultipl
 }
 
 int main() {
-	StaticSizeMatrix<400, 500, long> mA;
+	StaticSizeMatrix<400, 5000, long> mA;
 	initializeCells(mA, "A", 12, 5);
-	StaticSizeMatrix<400, 500, long> mB;
+	StaticSizeMatrix<400, 5000, long> mB;
 	initializeCells(mB, "B", 7, 13);
 
-	StaticSizeMatrix<500, 200, long> mC;
+	StaticSizeMatrix<5000, 200, long> mC;
 	initializeCells(mC, "C", 3, 8);
-	StaticSizeMatrix<500, 200, long> mD;
+	StaticSizeMatrix<5000, 200, long> mD;
 	initializeCells(mD, "D", 4, 7);
 
 	StaticSizeMatrix<200, 400, long> mE;
@@ -58,13 +58,13 @@ int main() {
 
 
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-	int first = multiplication.getData().get(0, 0);
+	long first = multiplication.getData().get(0, 0);
 	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 	std::cout << "The first element is " << first << ", and it took " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() / 1000.0 << " seconds" << std::endl;
 
 	std::cout << "((A + B) * (C + D) * (E + F)) + (G * H)" << std::endl;
 	std::cout << std::endl << std::endl;
-	multiplication.getData().printTree();
+	//multiplication.getData().printTree();
 	std::cout << std::endl << std::endl;
 	std::cout << "Oks" << std::endl;
 

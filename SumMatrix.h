@@ -14,7 +14,10 @@
 template<typename T, class MD1, class MD2>
 class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 	public:
-		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>("Sum", left, right, left.rows(), left.columns()) {
+		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>(left, right, left.rows(), left.columns()) {
+			if (left.rows() != right.rows() || left.columns() != right.columns()) {
+				Utils::error("Sum between incompatible sizes");
+			}
 		}
 
 		T get(unsigned row, unsigned col) const {
@@ -35,7 +38,12 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 template<typename T, class MD>
 class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 	public:
-		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>("Sum", wrapped, wrapped[0].rows(), wrapped[0].columns()) {
+		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>(wrapped, wrapped[0].rows(), wrapped[0].columns()) {
+			for (auto &m:wrapped) {
+				if (m.rows() != this->rows() || m.columns() != this->columns()) {
+					Utils::error("Sum between incompatible sizes");
+				}
+			}
 		}
 
 		T get(unsigned row, unsigned col) const {
