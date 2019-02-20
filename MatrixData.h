@@ -94,16 +94,18 @@ class MatrixData {
 			this->optimize();
 		}
 
+		virtual void virtualWaitOptimized() const {
+			for (auto &child : this->virtualGetChildren()) {
+				child->virtualWaitOptimized();
+			}
+		}
+
+	protected:
+
 		void optimize() const {
 			this->optimizeHasBeenCalled = true;
 			for (auto &child : this->virtualGetChildren()) {
 				child->virtualOptimize();
-			}
-		}
-
-		virtual void virtualWaitOptimized() const {
-			for (auto &child : this->virtualGetChildren()) {
-				child->virtualWaitOptimized();
 			}
 		}
 };

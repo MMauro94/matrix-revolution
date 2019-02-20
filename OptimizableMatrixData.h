@@ -61,6 +61,16 @@ class OptimizableMatrixData : public MatrixData<T> {
 		}
 
 	private:
+		T doGet(unsigned row, unsigned col) const {
+			if (this->optimizedPointer == NULL) {
+				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
+				this->optimizedPointer = optimized.get().get();
+			}
+			return this->optimizedPointer->get(row, col);
+		}
+
+
+	protected:
 
 		void optimize() const {
 			std::unique_lock<std::mutex> lock(this->optimizeMutex);
@@ -73,17 +83,6 @@ class OptimizableMatrixData : public MatrixData<T> {
 				this->optimizeHasBeenCalled = true;
 			}
 		}
-
-		T doGet(unsigned row, unsigned col) const {
-			if (this->optimizedPointer == NULL) {
-				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
-				this->optimizedPointer = optimized.get().get();
-			}
-			return this->optimizedPointer->get(row, col);
-		}
-
-
-	protected:
 
 		/**
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.

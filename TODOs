@@ -15,4 +15,5 @@ Performances:
 
 20 february
 -18:01: Base new test => 0.475 sec
--18:05: Calling optimize before get() => 0.400 sec
+-18:05: Calling optimize before get() for every MatrixData => 0.400 sec
+-20:30: New test => 3.06 sec
