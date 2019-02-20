@@ -17,10 +17,15 @@ class MultiplyMatrix;
 
 //This macro is used to add the method virtualMaterialize() to implementations of MatrixData, without copy-pasting code.
 //It is necessary, since this methods call an inherited non-virtual method (i.e. get(r,c))
+//TODO: togliere optimizedHasBeenCalled da materialize?
 #define MATERIALIZE_IMPL        \
 VectorMatrixData<T> virtualMaterialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const override {\
-    if (rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
+    if (rows < 0 || columns < 0 || rowOffset < 0 || colOffset < 0 || rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
         Utils::error("Illegal bounds");\
+    }\
+    if (!this->optimizedHasBeenCalled) {\
+        this->optimizedHasBeenCalled = true;\
+        this->virtualOptimize();\
     }\
     VectorMatrixData<T> ret(rows, columns);\
     for (unsigned r = 0; r < rows; r++) {\
@@ -29,6 +34,14 @@ VectorMatrixData<T> virtualMaterialize(unsigned rowOffset, unsigned colOffset, u
         }\
     }\
     return ret;\
+}\
+\
+T get(unsigned row, unsigned col) const {\
+    if (!this->optimizedHasBeenCalled) {\
+        this->optimizedHasBeenCalled = true;\
+        this->virtualOptimize();\
+    }\
+    return this->doGet(row, col);\
 }
 
 /**
@@ -45,6 +58,8 @@ class MatrixData {
 		class MultiplyMatrix;
 
 	protected:
+
+		mutable bool optimizedHasBeenCalled = false;
 
 		/**
 		 * Adds itself to the multiplication chain
@@ -102,15 +117,13 @@ class VectorMatrixData : public MatrixData<T> {
 		std::shared_ptr<std::vector<T>> vector;
 	public:
 
-		VectorMatrixData(unsigned rows, unsigned columns, std::shared_ptr<std::vector<T>> vector) : MatrixData<T>(rows, columns),
-																									vector(vector) {
+		VectorMatrixData(unsigned rows, unsigned columns, std::shared_ptr<std::vector<T>> vector) : MatrixData<T>(rows, columns), vector(vector) {
 		}
 
-		VectorMatrixData(unsigned rows, unsigned columns) : MatrixData<T>(rows, columns),
-															vector(std::make_shared<std::vector<T>>(rows * columns)) {
+		VectorMatrixData(unsigned rows, unsigned columns) : MatrixData<T>(rows, columns), vector(std::make_shared<std::vector<T >>(rows * columns)) {
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			return (*this->vector.get())[row * this->columns() + col];
 		}
 
@@ -223,7 +236,7 @@ class SubmatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
 		}
 
@@ -250,7 +263,7 @@ class TransposedMD : public SingleMatrixWrapper<T, MD> {
 		explicit TransposedMD(MD wrapped) : SingleMatrixWrapper<T, MD>(wrapped, wrapped.columns(), wrapped.rows()) {
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			return this->wrapped.get(col, row);
 		}
 
@@ -280,7 +293,7 @@ class DiagonalMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			return this->wrapped.get(row, row);
 		}
 
@@ -310,7 +323,7 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			if (row == col) {
 				return this->wrapped.get(row, 0);
 			} else {
@@ -362,7 +375,7 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			unsigned blockRows = this->getRowsOfBlocks();
 			unsigned blockCols = this->getColumnsOfBlocks();
 			unsigned blockRowIndex = row / blockRows;
@@ -408,7 +421,7 @@ class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 		MatrixResizer(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>(wrapped, rows, columns) {
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			if (row < this->wrapped.rows() && col < this->wrapped.columns()) {
 				return this->wrapped.get(row, col);
 			} else {

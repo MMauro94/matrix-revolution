@@ -20,7 +20,7 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			return this->left.get(row, col) + this->right.get(row, col);
 		}
 
@@ -46,7 +46,7 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 			}
 		}
 
-		T get(unsigned row, unsigned col) const {
+		T doGet(unsigned row, unsigned col) const {
 			T ret = 0;
 			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
 				ret += it->get(row, col);

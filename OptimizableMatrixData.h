@@ -35,9 +35,6 @@ class OptimizableMatrixData : public MatrixData<T> {
 		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
 				MatrixData<T>(another.rows(), another.columns()) {
 			//The cached data is not passed around, since it will be too difficult to move
-			if (another.optimizedPointer != NULL) {
-				std::cout << "Warning: cached data is lost!\n";
-			}
 		}
 
 		virtual ~OptimizableMatrixData() {
@@ -46,15 +43,24 @@ class OptimizableMatrixData : public MatrixData<T> {
 			}
 		}
 
-		T get(unsigned int row, unsigned int col) const {
-			return getOptimized()->get(row, col);
-		}
-
 		MATERIALIZE_IMPL
 
 		void virtualOptimize() const override {
 			this->optimize();
 		}
+
+		void virtualWaitOptimized() const override {
+			MatrixData<T>::virtualWaitOptimized();
+			auto future = this->optimized;
+			if (future.valid()) {
+				future.wait();
+			}
+			if (this->optimizedPointer != NULL) {
+				this->optimizedPointer->virtualWaitOptimized();
+			}
+		}
+
+	private:
 
 		void optimize() const {
 			//This "if" is also outside to skip creating the lock if unnecessary
@@ -70,16 +76,10 @@ class OptimizableMatrixData : public MatrixData<T> {
 			}
 		}
 
-		void virtualWaitOptimized() const override {
-			MatrixData<T>::virtualWaitOptimized();
-			auto future = this->optimized;
-			if (future.valid()) {
-				future.wait();
-			}
-			if(this->optimizedPointer != NULL){
-				this->optimizedPointer->virtualWaitOptimized();
-			}
+		T doGet(unsigned row, unsigned col) const {
+			return this->getOptimized()->get(row, col);
 		}
+
 
 	protected:
 
@@ -91,11 +91,10 @@ class OptimizableMatrixData : public MatrixData<T> {
 		O *getOptimized() const {
 			this->optimize();//Calling the concrete implementation
 			if (this->optimizedPointer == NULL) {
-				//Waiting for optimized, it not already done.
 				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
-				optimizedPointer = optimized.get().get();
+				this->optimizedPointer = optimized.get().get();
 			}
-			return optimizedPointer;
+			return this->optimizedPointer;
 		}
 };
 
