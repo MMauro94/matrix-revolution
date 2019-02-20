@@ -63,21 +63,23 @@ class OptimizableMatrixData : public MatrixData<T> {
 	private:
 
 		void optimize() const {
-			//This "if" is also outside to skip creating the lock if unnecessary
-			if (this->optimizedPointer == NULL && !this->optimized.valid()) {
-				std::unique_lock<std::mutex> lock(this->optimizeMutex);
-				if (!this->optimized.valid()) {
-					this->optimized = std::async(std::launch::async, [=] {
-						auto ptr = this->virtualCreateOptimizedMatrix();
-						ptr->virtualOptimize();
-						return ptr;
-					}).share();
-				}
+			std::unique_lock<std::mutex> lock(this->optimizeMutex);
+			if (!this->optimizeHasBeenCalled) {
+				this->optimized = std::async(std::launch::async, [=] {
+					auto ptr = this->virtualCreateOptimizedMatrix();
+					ptr->virtualOptimize();
+					return ptr;
+				}).share();
+				this->optimizeHasBeenCalled = true;
 			}
 		}
 
 		T doGet(unsigned row, unsigned col) const {
-			return this->getOptimized()->get(row, col);
+			if (this->optimizedPointer == NULL) {
+				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
+				this->optimizedPointer = optimized.get().get();
+			}
+			return this->optimizedPointer->get(row, col);
 		}
 
 
@@ -87,15 +89,6 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 * This method optimizes the multiplication if the multiplication chain involves more than three matrix.
 		 */
 		virtual std::unique_ptr<O> virtualCreateOptimizedMatrix() const = 0;
-
-		O *getOptimized() const {
-			this->optimize();//Calling the concrete implementation
-			if (this->optimizedPointer == NULL) {
-				//I'm saving the pointer to optimized matrix in order to skip accessing it through a future and a unique_ptr
-				this->optimizedPointer = optimized.get().get();
-			}
-			return this->optimizedPointer;
-		}
 };
 
 #endif //MATRIX_OPERATIONNODEMATRIXDATA_H

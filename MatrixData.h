@@ -17,29 +17,27 @@ class MultiplyMatrix;
 
 //This macro is used to add the method virtualMaterialize() to implementations of MatrixData, without copy-pasting code.
 //It is necessary, since this methods call an inherited non-virtual method (i.e. get(r,c))
-//TODO: togliere optimizedHasBeenCalled da materialize?
+//TODO: togliere optimizeHasBeenCalled da materialize?
 #define MATERIALIZE_IMPL        \
 VectorMatrixData<T> virtualMaterialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const override {\
     if (rows < 0 || columns < 0 || rowOffset < 0 || colOffset < 0 || rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
         Utils::error("Illegal bounds");\
     }\
-    if (!this->optimizedHasBeenCalled) {\
-        this->optimizedHasBeenCalled = true;\
-        this->virtualOptimize();\
+    if (!this->optimizeHasBeenCalled) {\
+        this->optimize();\
     }\
     VectorMatrixData<T> ret(rows, columns);\
     for (unsigned r = 0; r < rows; r++) {\
         for (unsigned c = 0; c < columns; c++) {\
-            ret.set(r, c, this->get(r + rowOffset, c + colOffset));\
+            ret.set(r, c, this->doGet(r + rowOffset, c + colOffset));\
         }\
     }\
     return ret;\
 }\
 \
 T get(unsigned row, unsigned col) const {\
-    if (!this->optimizedHasBeenCalled) {\
-        this->optimizedHasBeenCalled = true;\
-        this->virtualOptimize();\
+    if (!this->optimizeHasBeenCalled) {\
+        this->optimize();\
     }\
     return this->doGet(row, col);\
 }
@@ -59,7 +57,7 @@ class MatrixData {
 
 	protected:
 
-		mutable bool optimizedHasBeenCalled = false;
+		mutable bool optimizeHasBeenCalled = false;
 
 		/**
 		 * Adds itself to the multiplication chain
@@ -94,6 +92,11 @@ class MatrixData {
 		}
 
 		virtual void virtualOptimize() const {
+			this->optimize();
+		}
+
+		void optimize() const {
+			this->optimizeHasBeenCalled = true;
 			for (auto &child : this->virtualGetChildren()) {
 				child->virtualOptimize();
 			}
@@ -123,10 +126,6 @@ class VectorMatrixData : public MatrixData<T> {
 		VectorMatrixData(unsigned rows, unsigned columns) : MatrixData<T>(rows, columns), vector(std::make_shared<std::vector<T >>(rows * columns)) {
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			return (*this->vector.get())[row * this->columns() + col];
-		}
-
 		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
@@ -141,6 +140,11 @@ class VectorMatrixData : public MatrixData<T> {
 		template<class MD>
 		static VectorMatrixData<T> toVector(MD matrixData) {
 			return matrixData.virtualMaterialize(0, 0, matrixData.rows(), matrixData.columns());
+		}
+
+	private:
+		T doGet(unsigned row, unsigned col) const {
+			return (*this->vector.get())[row * this->columns() + col];
 		}
 };
 
@@ -236,10 +240,6 @@ class SubmatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
-		}
-
 		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
@@ -248,6 +248,11 @@ class SubmatrixMD : public SingleMatrixWrapper<T, MD> {
 
 		SubmatrixMD<T, MD> copy() const {
 			return SubmatrixMD<T, MD>(this->rowOffset, this->colOffset, this->rows(), this->columns(), this->wrapped.copy());
+		}
+
+	private:
+		T doGet(unsigned row, unsigned col) const {
+			return this->wrapped.get(row + this->rowOffset, col + this->colOffset);
 		}
 };
 
@@ -263,10 +268,6 @@ class TransposedMD : public SingleMatrixWrapper<T, MD> {
 		explicit TransposedMD(MD wrapped) : SingleMatrixWrapper<T, MD>(wrapped, wrapped.columns(), wrapped.rows()) {
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			return this->wrapped.get(col, row);
-		}
-
 		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
@@ -275,6 +276,11 @@ class TransposedMD : public SingleMatrixWrapper<T, MD> {
 
 		TransposedMD<T, MD> copy() const {
 			return TransposedMD<T, MD>(this->wrapped.copy());
+		}
+
+	private:
+		T doGet(unsigned row, unsigned col) const {
+			return this->wrapped.get(col, row);
 		}
 
 };
@@ -293,10 +299,6 @@ class DiagonalMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			return this->wrapped.get(row, row);
-		}
-
 		MATERIALIZE_IMPL
 
 		void set(unsigned row, unsigned col, T t) {
@@ -305,6 +307,11 @@ class DiagonalMD : public SingleMatrixWrapper<T, MD> {
 
 		DiagonalMD<T, MD> copy() const {
 			return DiagonalMD<T, MD>(this->wrapped.copy());
+		}
+
+	private:
+		T doGet(unsigned row, unsigned col) const {
+			return this->wrapped.get(row, row);
 		}
 
 };
@@ -323,18 +330,19 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 			}
 		}
 
+		MATERIALIZE_IMPL
+
+		DiagonalMatrixMD<T, MD> copy() const {
+			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
+		}
+
+	private:
 		T doGet(unsigned row, unsigned col) const {
 			if (row == col) {
 				return this->wrapped.get(row, 0);
 			} else {
 				return 0;
 			}
-		}
-
-		MATERIALIZE_IMPL
-
-		DiagonalMatrixMD<T, MD> copy() const {
-			return DiagonalMatrixMD<T, MD>(this->wrapped.copy());
 		}
 
 };
@@ -375,15 +383,6 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 			}
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			unsigned blockRows = this->getRowsOfBlocks();
-			unsigned blockCols = this->getColumnsOfBlocks();
-			unsigned blockRowIndex = row / blockRows;
-			unsigned blockColIndex = col / blockCols;
-			unsigned blockIndex = blockRowIndex * this->getNumberOfColumnBlocks() + blockColIndex;
-			return this->wrapped[blockIndex].get(row % blockRows, col % blockCols);
-		}
-
 		/**
 		 * @return the number of vertical blocks
 		 */
@@ -409,6 +408,18 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		DiagonalMatrixMD<T, MD> copy() const {
 			return MatrixConcatenation<T, MD>(this->copyWrapped());
 		}
+
+	private:
+
+		T doGet(unsigned row, unsigned col) const {
+			unsigned blockRows = this->getRowsOfBlocks();
+			unsigned blockCols = this->getColumnsOfBlocks();
+			unsigned blockRowIndex = row / blockRows;
+			unsigned blockColIndex = col / blockCols;
+			unsigned blockIndex = blockRowIndex * this->getNumberOfColumnBlocks() + blockColIndex;
+			return this->wrapped[blockIndex].get(row % blockRows, col % blockCols);
+		}
+
 };
 
 /**
@@ -421,18 +432,19 @@ class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 		MatrixResizer(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>(wrapped, rows, columns) {
 		}
 
+		MATERIALIZE_IMPL
+
+		MatrixResizer<T, MD> copy() const {
+			return MatrixResizer<T, MD>(this->wrapped.copy(), this->rows(), this->columns());
+		}
+
+	private:
 		T doGet(unsigned row, unsigned col) const {
 			if (row < this->wrapped.rows() && col < this->wrapped.columns()) {
 				return this->wrapped.get(row, col);
 			} else {
 				return 0;
 			}
-		}
-
-		MATERIALIZE_IMPL
-
-		MatrixResizer<T, MD> copy() const {
-			return MatrixResizer<T, MD>(this->wrapped.copy(), this->rows(), this->columns());
 		}
 };
 

@@ -20,14 +20,16 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 			}
 		}
 
-		T doGet(unsigned row, unsigned col) const {
-			return this->left.get(row, col) + this->right.get(row, col);
-		}
-
 		MATERIALIZE_IMPL
 
 		SumMatrix<T, MD1, MD2> copy() const {
 			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		}
+
+	private:
+
+		T doGet(unsigned row, unsigned col) const {
+			return this->left.get(row, col) + this->right.get(row, col);
 		}
 };
 
@@ -46,18 +48,19 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 			}
 		}
 
+		MATERIALIZE_IMPL
+
+		MultiSumMatrix<T, MD> copy() const {
+			return MultiSumMatrix<T, MD>(this->copyWrapped());
+		}
+
+	private:
 		T doGet(unsigned row, unsigned col) const {
 			T ret = 0;
 			for (auto it = this->wrapped.begin(); it < this->wrapped.end(); it++) {
 				ret += it->get(row, col);
 			}
 			return ret;
-		}
-
-		MATERIALIZE_IMPL
-
-		MultiSumMatrix<T, MD> copy() const {
-			return MultiSumMatrix<T, MD>(this->copyWrapped());
 		}
 };
 

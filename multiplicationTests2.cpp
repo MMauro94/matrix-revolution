@@ -20,14 +20,14 @@ int main() {
 	StaticSizeMatrix<400, 5000, long> mB;
 	initializeCells(mB, 7, 13);
 
-	StaticSizeMatrix<5000, 200, long> mC;
+	StaticSizeMatrix<5000, 2000, long> mC;
 	initializeCells(mC, 3, 8);
-	StaticSizeMatrix<5000, 200, long> mD;
+	StaticSizeMatrix<5000, 2000, long> mD;
 	initializeCells(mD, 4, 7);
 
-	StaticSizeMatrix<200, 400, long> mE;
+	StaticSizeMatrix<2000, 400, long> mE;
 	initializeCells(mE, 8, 9);
-	StaticSizeMatrix<200, 400, long> mF;
+	StaticSizeMatrix<2000, 400, long> mF;
 	initializeCells(mF, 5, 11);
 
 	StaticSizeMatrix<400, 1001, long> mG;
