@@ -53,6 +53,11 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
 		}
 
+		virtual ~MultiplyMatrix() {
+			//This is done in order to don't have threads that uses this object (or something inside nodeReferences or left or right), after I'm being destroying
+			this->virtualWaitOptimized();
+		}
+
 		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
 			return {&this->left, &this->right};
 		}

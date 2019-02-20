@@ -6,8 +6,7 @@
 #include "StaticSizeMatrix.h"
 
 template<class MD>
-void initializeCells(Matrix<long, MD> &m, std::string debugName, long rowMultiplier, long colMultiplier) {
-	//m.getData().setDebugName(debugName);
+void initializeCells(Matrix<long, MD> &m, long rowMultiplier, long colMultiplier) {
 	for (unsigned row = 0; row < m.rows(); ++row) {
 		for (unsigned col = 0; col < m.columns(); ++col) {
 			m(row, col) = row * rowMultiplier + col * colMultiplier;
@@ -17,24 +16,24 @@ void initializeCells(Matrix<long, MD> &m, std::string debugName, long rowMultipl
 
 int main() {
 	StaticSizeMatrix<400, 5000, long> mA;
-	initializeCells(mA, "A", 12, 5);
+	initializeCells(mA, 12, 5);
 	StaticSizeMatrix<400, 5000, long> mB;
-	initializeCells(mB, "B", 7, 13);
+	initializeCells(mB, 7, 13);
 
 	StaticSizeMatrix<5000, 200, long> mC;
-	initializeCells(mC, "C", 3, 8);
+	initializeCells(mC, 3, 8);
 	StaticSizeMatrix<5000, 200, long> mD;
-	initializeCells(mD, "D", 4, 7);
+	initializeCells(mD, 4, 7);
 
 	StaticSizeMatrix<200, 400, long> mE;
-	initializeCells(mE, "E", 8, 9);
+	initializeCells(mE, 8, 9);
 	StaticSizeMatrix<200, 400, long> mF;
-	initializeCells(mF, "F", 5, 11);
+	initializeCells(mF, 5, 11);
 
-	StaticSizeMatrix<400, 101, long> mG;
-	initializeCells(mG, "G", 54, 11);
-	StaticSizeMatrix<101, 400, long> mH;
-	initializeCells(mH, "H", 66, 11);
+	StaticSizeMatrix<400, 1001, long> mG;
+	initializeCells(mG, 54, 11);
+	StaticSizeMatrix<1001, 400, long> mH;
+	initializeCells(mH, 66, 11);
 
 	/*std::cout << "Matrix A" << std::endl;
 	mA.print("%2d");

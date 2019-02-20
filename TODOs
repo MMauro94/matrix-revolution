@@ -1,5 +1,4 @@
 Correctness:
-- Check if 858114132 is right
 - Allow for matrix casting
 
 Performances:

@@ -83,6 +83,12 @@ class MatrixData {
 				child->virtualOptimize();
 			}
 		}
+
+		virtual void virtualWaitOptimized() const {
+			for (auto &child : this->virtualGetChildren()) {
+				child->virtualWaitOptimized();
+			}
+		}
 };
 
 /**

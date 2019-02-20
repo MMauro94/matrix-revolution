@@ -70,6 +70,17 @@ class OptimizableMatrixData : public MatrixData<T> {
 			}
 		}
 
+		void virtualWaitOptimized() const override {
+			MatrixData<T>::virtualWaitOptimized();
+			auto future = this->optimized;
+			if (future.valid()) {
+				future.wait();
+			}
+			if(this->optimizedPointer != NULL){
+				this->optimizedPointer->virtualWaitOptimized();
+			}
+		}
+
 	protected:
 
 		/**
