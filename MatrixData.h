@@ -17,7 +17,6 @@ class MultiplyMatrix;
 
 //This macro is used to add the method virtualMaterialize() to implementations of MatrixData, without copy-pasting code.
 //It is necessary, since this methods call an inherited non-virtual method (i.e. get(r,c))
-//TODO: togliere optimizeHasBeenCalled da materialize?
 #define MATERIALIZE_IMPL        \
 VectorMatrixData<T> virtualMaterialize(unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns) const override {\
     if (rows < 0 || columns < 0 || rowOffset < 0 || colOffset < 0 || rowOffset + rows > this->rows() || colOffset + columns > this->columns()) {\
