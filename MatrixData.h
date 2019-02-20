@@ -140,7 +140,7 @@ class VectorMatrixData : public MatrixData<T> {
 
 		template<class MD>
 		static VectorMatrixData<T> toVector(MD matrixData) {
-			return matrixData.materialize(0, 0, matrixData.rows(), matrixData.columns());
+			return matrixData.virtualMaterialize(0, 0, matrixData.rows(), matrixData.columns());
 		}
 };
 
