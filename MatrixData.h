@@ -467,6 +467,7 @@ class MatrixCaster : public MatrixData<T> {
 		MatrixCaster<T, MD> copy() const {
 			return MatrixCaster<T, MD>(this->wrapped);
 		}
+
 	public:
 
 		void optimize() const override {

@@ -246,8 +246,8 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 			}
 
 			//Freeing memory
-			//this->left.reset();
-			//this->right.reset();
+			this->left.reset();
+			this->right.reset();
 			return ret;
 		}
 };
