@@ -100,9 +100,7 @@ class MatrixData {
 			}
 		}
 
-	protected:
-
-		void optimize() const {
+		virtual void optimize() const {
 			this->optimizeHasBeenCalled = true;
 			for (auto &child : this->virtualGetChildren()) {
 				child->virtualOptimize();
@@ -446,6 +444,48 @@ class MatrixResizer : public SingleMatrixWrapper<T, MD> {
 			} else {
 				return 0;
 			}
+		}
+};
+
+template<typename T, class MD>
+class MatrixCaster : public MatrixData<T> {
+
+	protected:
+		MD wrapped;
+
+	public:
+
+		MatrixCaster(MD wrapped) : MatrixData<T>(wrapped.rows(), wrapped.columns()), wrapped(wrapped) {
+		}
+
+		void virtualWaitOptimized() const override {
+			this->wrapped.virtualWaitOptimized();
+		}
+
+		MATERIALIZE_IMPL
+
+		MatrixCaster<T, MD> copy() const {
+			return MatrixCaster<T, MD>(this->wrapped);
+		}
+	public:
+
+		void optimize() const override {
+			this->wrapped.optimize();
+		}
+
+		void virtualOptimize() const override {
+			this->optimize();
+		}
+
+		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
+			//I cannot return wrapper, since it's of another type
+			//return {&this->wrapped};
+			return std::vector<const MatrixData<T> *>();
+		}
+
+	private:
+		T doGet(unsigned row, unsigned col) const {
+			return this->wrapped.get(row, col);
 		}
 };
 

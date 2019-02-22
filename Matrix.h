@@ -214,6 +214,11 @@ class Matrix {
 			return Matrix<T, VectorMatrixData<T>>(VectorMatrixData<T>::template toVector<MD>(this->data));
 		}
 
+		template<typename U>
+		Matrix<U, MatrixCaster<U, MD>> cast() const {
+			return Matrix<U, MatrixCaster<U, MD>>(MatrixCaster<U, MD>(this->data));
+		}
+
 		/**
 		 * Prints the content of this matrix to the standard output
 		 * @param format the format string to use when printing values

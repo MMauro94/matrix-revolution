@@ -1,4 +1,4 @@
-# matrix-revolution - Second assignment
+# matrix-reloaded - Second assignment
 
 The second assignment of [Advanced Algorithms and Programming Methods](https://www.unive.it/data/insegnamento/274858) class, made by Marco Marangoni (858450).
 

@@ -134,6 +134,11 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 			return StaticSizeMatrix<ROWS, COLUMNS, T, VectorMatrixData<T>>(VectorMatrixData<T>::template toVector<MD>(this->data));
 		}
 
+		template<typename U>
+		StaticSizeMatrix<ROWS, COLUMNS, U, MatrixCaster<U, MD>> cast() const {
+			return StaticSizeMatrix<ROWS, COLUMNS, U, MatrixCaster<U, MD>>(MatrixCaster<U, MD>(this->data));
+		}
+
 };
 
 #endif //MATRIX_STATICSIZEMATRIX_H

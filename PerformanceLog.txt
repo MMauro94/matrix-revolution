@@ -1,6 +1,3 @@
-Correctness:
-- Allow for matrix casting
-
 Performances:
 15 february:
 -14:43: initial version  => 11,16 sec (10cb14c46c0474eeee598f1802ac5b6d875f457c)

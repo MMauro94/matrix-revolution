@@ -35,13 +35,13 @@ void assertEqual(const Matrix<T, MD1> &m1, const Matrix<T, MD2> &m2) {
 }
 
 int main() {
-	StaticSizeMatrix<4, 9, int> mAd;
+	StaticSizeMatrix<4, 9, double> mAd;
 	StaticSizeMatrix<4, 9, int> mA;
 	StaticSizeMatrix<9, 7, int> mB;
 	StaticSizeMatrix<7, 8, int> mC;
 	StaticSizeMatrix<8, 2, int> mD;
 	initializeCells(mA, 12, 5);
-	initializeCells<int>(mAd, 12, 5);
+	initializeCells<double>(mAd, 12, 5);
 
 	initializeCells(mB, 7, 13);
 	initializeCells(mC, 3, 8);
@@ -70,7 +70,7 @@ int main() {
 	auto multiplicationABCD = multiplicationAB * multiplicationCD;
 	auto multiplicationABCD2 = mA * mB * mC * mD;
 
-	auto sum = mA + mAd;
+	auto sum = mA + mAd.cast<int>();
 
 	std::cout << "Matrix AxBxC" << std::endl;
 	multiplicationABC.print("%2d"); // This should perform AxB and (AxB)xC

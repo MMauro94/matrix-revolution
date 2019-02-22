@@ -213,8 +213,9 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 				: OptimizableMatrixData<T, VectorMatrixData<T>>(left->rows(), right->columns()), left(left), right(right) {
 		}
 
+		//I cannot return left or right, since I could leak an object that will be deleted in the future
 		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
-			//I cannot return left or right, since I could leak an object that will be deleted in the future
+			//return {this->left.get(), this->right.get()};
 			return std::vector<const MatrixData<T> *>();
 		}
 
