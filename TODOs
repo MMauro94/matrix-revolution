@@ -17,3 +17,8 @@ Performances:
 -18:01: Base new test => 0.475 sec
 -18:05: Calling optimize before get() for every MatrixData => 0.400 sec
 -20:30: New test => 3.06 sec
+
+22 February
+-14:57: Using laptop, test took => 5.14 sec
+-15:06: Vectors are freed when not needed anymore. Slower, but needs less memory => 5.48 sec
+-15:44 BaseMultiplication caches pointers to left and right => 5.30 sec

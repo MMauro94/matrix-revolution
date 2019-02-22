@@ -9,10 +9,12 @@
 #include "OptimizableMatrixData.h"
 #include "MatrixMaterializer.h"
 #include <deque>
+#include <cmath>
 #include <chrono>
 #include <thread>
 
-unsigned OPTIMAL_MULTIPLICATION_SIZE = 150;
+//Using long, blocks of 128k will be 128x128
+unsigned OPTIMAL_BLOCK_SIZE = 128 * 1024;
 
 template<typename T>
 class OptimizedMultiplyMatrix;
@@ -137,16 +139,18 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 	protected:
 
 		std::unique_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> virtualCreateOptimizedMatrix() const override {
+			auto optimalMultiplicationSize = (unsigned) sqrt(OPTIMAL_BLOCK_SIZE / (double) sizeof(T));
+
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
-			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 3
+			unsigned numberOfGridRowsA = Utils::ceilDiv(this->left->rows(), optimalMultiplicationSize);//e.g. 3
 			unsigned rowsOfGridA = Utils::ceilDiv(this->left->rows(), numberOfGridRowsA);//e.g. 68
-			unsigned numberOfGridColsA = Utils::ceilDiv(this->left->columns(), OPTIMAL_MULTIPLICATION_SIZE);//e.g. 4
+			unsigned numberOfGridColsA = Utils::ceilDiv(this->left->columns(), optimalMultiplicationSize);//e.g. 4
 			unsigned colsOfGridA = Utils::ceilDiv(this->left->columns(), numberOfGridColsA);//e.g. 76
 			//Now that I've decided the blocks of A, I can comute the blocks of B.
 			//For example, if B is 302x404, it will be divided in 4x5 blocks of size 76x81
 			unsigned numberOfGridRowsB = numberOfGridColsA;//4
 			unsigned rowsOfGridB = colsOfGridA;//76
-			unsigned numberOfGridColsB = Utils::ceilDiv(this->right->columns(), OPTIMAL_MULTIPLICATION_SIZE);// e.g. 5
+			unsigned numberOfGridColsB = Utils::ceilDiv(this->right->columns(), optimalMultiplicationSize);// e.g. 5
 			unsigned colsOfGridB = Utils::ceilDiv(this->right->columns(), numberOfGridColsB);//e.g. 81
 			//Now we divide the matrices in blocks
 			auto blocksOfA = this->divideInBlocks(this->left, numberOfGridRowsA, numberOfGridColsA);
@@ -203,31 +207,46 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 template<typename T>
 class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> {
 	private:
-		std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, right;
+		mutable std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, right;
 	public:
 		BaseMultiplyMatrix(std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> right)
 				: OptimizableMatrixData<T, VectorMatrixData<T>>(left->rows(), right->columns()), left(left), right(right) {
 		}
 
 		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
-			return {this->left.get(), this->right.get()};
+			//I cannot return left or right, since I could leak an object that will be deleted in the future
+			return std::vector<const MatrixData<T> *>();
+		}
+
+	public:
+		void virtualWaitOptimized() const override {
+			MatrixResizer<T, MatrixMaterializer<T>> *l = this->left.get();
+			MatrixResizer<T, MatrixMaterializer<T>> *r = this->right.get();
+			if (l != NULL) { l->virtualWaitOptimized(); }
+			if (r != NULL) { r->virtualWaitOptimized(); }
+			OptimizableMatrixData<T, VectorMatrixData<T>>::virtualWaitOptimized();
 		}
 
 	protected:
 
 		std::unique_ptr<VectorMatrixData<T>> virtualCreateOptimizedMatrix() const override {
-			//std::cout << "Multiplying...\n";
-			std::unique_ptr<VectorMatrixData<T>> ret = std::make_unique<VectorMatrixData<T>>(this->left->rows(), this->right->columns());
-			//ret->setDebugName("Multiplication result");
+			//Keeping the references to left and right, to save some time when calling get()
+			MatrixResizer<T, MatrixMaterializer<T>> *ll = this->left.get();
+			MatrixResizer<T, MatrixMaterializer<T>> *rr = this->right.get();
+			std::unique_ptr<VectorMatrixData<T>> ret = std::make_unique<VectorMatrixData<T>>(ll->rows(), rr->columns());
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
 					T sum = 0;
-					for (unsigned j = 0; j < this->left->columns(); j++) {
-						sum += this->left->get(r, j) * this->right->get(j, c);
+					for (unsigned j = 0; j < ll->columns(); j++) {
+						sum += ll->get(r, j) * rr->get(j, c);
 					}
 					ret->set(r, c, sum);
 				}
 			}
+
+			//Freeing memory
+			//this->left.reset();
+			//this->right.reset();
 			return ret;
 		}
 };
