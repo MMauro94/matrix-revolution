@@ -157,11 +157,8 @@ class OptimizedMultiplyMD : public OptimizableMD<T, ConcatenationMD<T, MultiSumM
 			//Now we divide the matrices in blocks
 			auto blocksOfA = this->divideInBlocks(this->left, numberOfGridRowsA, numberOfGridColsA);
 			auto blocksOfB = this->divideInBlocks(this->right, numberOfGridRowsB, numberOfGridColsB);
-			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
 
-			//Cose da fare:
-			//-Creare i blocchi di C
-			//-Unire i blocchi di C
+			//Now the result C is a matrix 202x404, and has 3x5 blocks of size 68x81
 			std::deque<MultiSumMD<T, BaseMultiplyMD<T>>> resultingBlocks;
 			for (unsigned r = 0; r < numberOfGridRowsA; r++) {
 				for (unsigned c = 0; c < numberOfGridColsB; c++) {
@@ -222,18 +219,13 @@ class BaseMultiplyMD : public OptimizableMD<T, VectorMatrixData<T>> {
 			return std::vector<const MatrixData<T> *>();
 		}
 
-	public:
-		void virtualWaitOptimized() const override {
-			ResizerMD<T, MaterializerMD<T>> *l = this->left.get();
-			ResizerMD<T, MaterializerMD<T>> *r = this->right.get();
-			if (l != NULL) { l->virtualWaitOptimized(); }
-			if (r != NULL) { r->virtualWaitOptimized(); }
-			OptimizableMD<T, VectorMatrixData<T>>::virtualWaitOptimized();
-		}
-
 	protected:
 
 		std::unique_ptr<VectorMatrixData<T>> virtualCreateOptimizedMatrix() const override {
+			//Since OptimizableMD doesn't call optimize on children automatically, I do it here
+			this->left->optimize();
+			this->right->optimize();
+
 			//Keeping the references to left and right, to save some time when calling get()
 			ResizerMD<T, MaterializerMD<T>> *ll = this->left.get();
 			ResizerMD<T, MaterializerMD<T>> *rr = this->right.get();
@@ -249,8 +241,8 @@ class BaseMultiplyMD : public OptimizableMD<T, VectorMatrixData<T>> {
 			}
 
 			//Freeing memory
-			//this->left.reset();
-			//this->right.reset();
+			this->left.reset();
+			this->right.reset();
 			return ret;
 		}
 };

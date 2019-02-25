@@ -45,10 +45,6 @@ class OptimizableMD : public MatrixData<T> {
 
 		MATERIALIZE_IMPL
 
-		void virtualOptimize() const override {
-			this->optimize();
-		}
-
 		void virtualWaitOptimized() const override {
 			MatrixData<T>::virtualWaitOptimized();
 			auto future = this->optimized;
@@ -58,6 +54,10 @@ class OptimizableMD : public MatrixData<T> {
 			if (this->optimizedPointer != NULL) {
 				this->optimizedPointer->virtualWaitOptimized();
 			}
+		}
+
+		void virtualOptimize() const override {
+			this->optimize();
 		}
 
 		void optimize() const {

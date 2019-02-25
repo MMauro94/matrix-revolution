@@ -135,7 +135,7 @@ Fortunately, you can extend the rows and columns with zeros, perform the multipl
 
 This property makes possible to divide every matrix in blocks, independently on the original size. 
 
-The library tries to divide the matrix in blocks of 128KB, i.e. 128x128 if using longs.
+The library tries to divide the matrix in blocks of 128KB, i.e. 128x128 if using longs. This was the size with the optimal balance between tree size and performance. 
 
 To implement this, the subtree of `BaseMultiplyMD` looks like this:
 - BaseMultiplyMD
