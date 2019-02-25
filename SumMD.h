@@ -1,20 +1,20 @@
 //
-// Created by MMarco on 12/02/2019.
+// Created by MMarco on 22/02/2019.
 //
 
-#ifndef MATRIX_SUMMATRIX_H
-#define MATRIX_SUMMATRIX_H
+#ifndef MATRIX_SUMMD_H
+#define MATRIX_SUMMD_H
 
-#include "OptimizableMatrixData.h"
+#include "OptimizableMD.h"
 
 /**
  * Implementation of <code>MatrixData</code> that exposes the sum of the two given matrices
  * @tparam T type of the data
  */
 template<typename T, class MD1, class MD2>
-class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
+class SumMDa : public BiMatrixWrapper<T, MD1, MD2> {
 	public:
-		SumMatrix(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>(left, right, left.rows(), left.columns()) {
+		SumMDa(MD1 left, MD2 right) : BiMatrixWrapper<T, MD1, MD2>(left, right, left.rows(), left.columns()) {
 			if (left.rows() != right.rows() || left.columns() != right.columns()) {
 				Utils::error("Sum between incompatible sizes");
 			}
@@ -22,8 +22,8 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
 
 		MATERIALIZE_IMPL
 
-		SumMatrix<T, MD1, MD2> copy() const {
-			return SumMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		SumMDa<T, MD1, MD2> copy() const {
+			return SumMDa<T, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
 
 	private:
@@ -38,9 +38,9 @@ class SumMatrix : public BiMatrixWrapper<T, MD1, MD2> {
  * @tparam T type of the data
  */
 template<typename T, class MD>
-class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
+class MultiSumMD : public MultiMatrixWrapper<T, MD> {
 	public:
-		explicit MultiSumMatrix(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>(wrapped, wrapped[0].rows(), wrapped[0].columns()) {
+		explicit MultiSumMD(std::deque<MD> wrapped) : MultiMatrixWrapper<T, MD>(wrapped, wrapped[0].rows(), wrapped[0].columns()) {
 			for (auto &m:wrapped) {
 				if (m.rows() != this->rows() || m.columns() != this->columns()) {
 					Utils::error("Sum between incompatible sizes");
@@ -50,8 +50,8 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 
 		MATERIALIZE_IMPL
 
-		MultiSumMatrix<T, MD> copy() const {
-			return MultiSumMatrix<T, MD>(this->copyWrapped());
+		MultiSumMD<T, MD> copy() const {
+			return MultiSumMD<T, MD>(this->copyWrapped());
 		}
 
 	private:
@@ -63,5 +63,4 @@ class MultiSumMatrix : public MultiMatrixWrapper<T, MD> {
 			return ret;
 		}
 };
-
-#endif //MATRIX_SUMMATRIX_H
+#endif //MATRIX_SUMMD_H

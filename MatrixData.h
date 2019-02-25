@@ -13,7 +13,7 @@ template<typename T>
 class VectorMatrixData;
 
 template<typename T, class MD1, class MD2>
-class MultiplyMatrix;
+class MultiplyMD;
 
 //This macro is used to add the method virtualMaterialize() to implementations of MatrixData, without copy-pasting code.
 //It is necessary, since this methods call an inherited non-virtual method (i.e. get(r,c))
@@ -52,7 +52,7 @@ class MatrixData {
 		unsigned _rows, _columns;
 
 		template<typename U, class MD1, class MD2> friend
-		class MultiplyMatrix;
+		class MultiplyMD;
 
 	protected:
 
@@ -94,16 +94,15 @@ class MatrixData {
 			this->optimize();
 		}
 
-		virtual void virtualWaitOptimized() const {
-			for (auto &child : this->virtualGetChildren()) {
-				child->virtualWaitOptimized();
-			}
-		}
-
 		virtual void optimize() const {
 			this->optimizeHasBeenCalled = true;
 			for (auto &child : this->virtualGetChildren()) {
 				child->virtualOptimize();
+			}
+		}
+		virtual void virtualWaitOptimized() const {
+			for (auto &child : this->virtualGetChildren()) {
+				child->virtualWaitOptimized();
 			}
 		}
 };
@@ -347,10 +346,10 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
 };
 
 /**
- * Given a vector of matrices, creates a new matrix composed by a concatenation of the given matrices.
+ * Given a vector of matrices, creates a new matrix composed by the concatenation of the given matrices.
  *
  * Let's suppose A, B, C and D are 2x2 matrices.
- * If I crate a MatrixConcatenation((A,B,C,D), 4, 4), I will obtained a 4x4 matrices, whose blocks are:
+ * If I crate a ConcatenationMD((A,B,C,D), 4, 4), I will obtained a 4x4 matrices, whose blocks are:
  *
  * A|B
  * C|D
@@ -359,9 +358,9 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
  * @tparam MD
  */
 template<typename T, class MD>
-class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
+class ConcatenationMD : public MultiMatrixWrapper<T, MD> {
 	public:
-		explicit MatrixConcatenation(std::deque<MD> blocks, unsigned rows, unsigned columns) :
+		explicit ConcatenationMD(std::deque<MD> blocks, unsigned rows, unsigned columns) :
 				MultiMatrixWrapper<T, MD>(blocks, rows, columns) {
 			//Checking that all the blocks have the same size
 			unsigned blockRows = this->getRowsOfBlocks();
@@ -405,7 +404,7 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
 		MATERIALIZE_IMPL
 
 		DiagonalMatrixMD<T, MD> copy() const {
-			return MatrixConcatenation<T, MD>(this->copyWrapped());
+			return ConcatenationMD<T, MD>(this->copyWrapped());
 		}
 
 	private:
@@ -426,15 +425,15 @@ class MatrixConcatenation : public MultiMatrixWrapper<T, MD> {
  * Elements outside of the bounds of the given matrices are 0.
  */
 template<typename T, class MD>
-class MatrixResizer : public SingleMatrixWrapper<T, MD> {
+class ResizerMD : public SingleMatrixWrapper<T, MD> {
 	public:
-		MatrixResizer(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>(wrapped, rows, columns) {
+		ResizerMD(MD wrapped, unsigned rows, unsigned columns) : SingleMatrixWrapper<T, MD>(wrapped, rows, columns) {
 		}
 
 		MATERIALIZE_IMPL
 
-		MatrixResizer<T, MD> copy() const {
-			return MatrixResizer<T, MD>(this->wrapped.copy(), this->rows(), this->columns());
+		ResizerMD<T, MD> copy() const {
+			return ResizerMD<T, MD>(this->wrapped.copy(), this->rows(), this->columns());
 		}
 
 	private:

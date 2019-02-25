@@ -1,16 +1,16 @@
 //
-// Created by MMarco on 12/02/2019.
+// Created by MMarco on 25/02/2019.
 //
 
-#ifndef MATRIX_OPERATIONNODEMATRIXDATA_H
-#define MATRIX_OPERATIONNODEMATRIXDATA_H
+#ifndef MATRIX_OPIMIZABLEMD_H
+#define MATRIX_OPIMIZABLEMD_H
 
 #include <deque>
 #include <future>
 #include "MatrixData.h"
 
 template<typename T, class O>
-class OptimizableMatrixData : public MatrixData<T> {
+class OptimizableMD : public MatrixData<T> {
 	protected:
 		mutable std::mutex optimizeMutex; //Mutex for the method optimize()
 	private:
@@ -20,11 +20,11 @@ class OptimizableMatrixData : public MatrixData<T> {
 
 	public:
 
-		OptimizableMatrixData(unsigned int rows, unsigned int columns) :
+		OptimizableMD(unsigned int rows, unsigned int columns) :
 				MatrixData<T>(rows, columns) {
 		}
 
-		OptimizableMatrixData(const OptimizableMatrixData<T, O> &another) :
+		OptimizableMD(const OptimizableMD<T, O> &another) :
 				MatrixData<T>(another.rows(), another.columns()) {
 			//The cached data is not passed around, since it will be too difficult to copy
 			if (another.optimizedPointer != NULL) {
@@ -32,12 +32,12 @@ class OptimizableMatrixData : public MatrixData<T> {
 			}
 		}
 
-		OptimizableMatrixData(OptimizableMatrixData<T, O> &&another) noexcept :
+		OptimizableMD(OptimizableMD<T, O> &&another) noexcept :
 				MatrixData<T>(another.rows(), another.columns()) {
 			//The cached data is not passed around, since it will be too difficult to move
 		}
 
-		virtual ~OptimizableMatrixData() {
+		virtual ~OptimizableMD() {
 			if (this->optimized.valid()) {
 				this->optimized.wait();
 			}
@@ -89,5 +89,4 @@ class OptimizableMatrixData : public MatrixData<T> {
 		 */
 		virtual std::unique_ptr<O> virtualCreateOptimizedMatrix() const = 0;
 };
-
-#endif //MATRIX_OPERATIONNODEMATRIXDATA_H
+#endif //MATRIX_OPIMIZABLEMD_H

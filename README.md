@@ -169,7 +169,7 @@ When performing a multiplication between three or more matrices, like `m1 * m2 *
 
 For example, then multiplying a `2x3`, `3x5` and `5x2` matrices, the `(3x5)*(5x2)` multiplication will be executed first, since it will reduce by `5` the number of dimensions.
 
-This is done inside the decorator class `MultiplyMatrix`. At the first access to the data, the following operations are performed:
+This is done inside the decorator class `MultiplyMD`. At the first access to the data, the following operations are performed:
 1.  The chain of multiplications is saved inside a vector
 2.  If the chain is only two matrices long, I can stop the optimization in order to keep accessing the data without using virtual operators
 3.  While the chain has more than one element:
@@ -179,21 +179,19 @@ This is done inside the decorator class `MultiplyMatrix`. At the first access to
 
 In the end, there will be an optimized operation tree, which can be accessed in an optimal order.
 
-### Sum between matrices of different types
-This library support adding matrices of different types. For example, a matrix of double is returned when adding a matrix of int and a matrix of doubles.
-```c++
-StaticSizeMatrix<4, 3, int> m1;
-Matrix<double> m2(4, 3);
-const auto sum = m1 + m2; //sum is a Matrix of double
+### Sum and multiplication between matrices of different types
+To sum or multiply matrices of different types, you first have to cast one of them, so they are of the same type.
+
+For example:
 ```
-This is accomplished using the `decltype` specifier, which allows to know the type of the result of the sum of two types. For example, the signature of the addition is the following:
-```c++
-template<typename U, class MD2>
-const Matrix<decltype(T() + U()), SumMatrix<decltype(T() + U()), MD, MD2>> operator+(const Matrix<U, MD2> &another) const {
-    ...
-}
+StaticSizeMatrix<4, 9, double> A;
+StaticSizeMatrix<4, 9, int> B;
+
+...
+
+auto sum = A + B.cast<double>();
 ```
-As long as an empty constructor is provided for the types used in the matrices, and the addition between the two types is supported, this library will allow the sum of the two matrices.
+
 
 ## Testing
 In the `tests.cpp`, `multiplicationTests.cpp`, `multiplicationTests2.cpp` files there is a main function that can be called to ensure that all tests are successful. Every major method is tested. 

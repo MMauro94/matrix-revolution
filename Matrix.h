@@ -5,8 +5,8 @@
 #include <string>
 #include <iostream>
 #include "MatrixData.h"
-#include "SumMatrix.h"
-#include "MultiplyMatrix.h"
+#include "SumMD.h"
+#include "MultiplyMD.h"
 #include "MatrixIterator.h"
 #include "MatrixCell.h"
 
@@ -140,22 +140,22 @@ class Matrix {
 		 * Multiplies the two given matrices
 		 */
 		template<class MD2>
-		const Matrix<T, MultiplyMatrix<T, MD, MD2>> operator*(const Matrix<T, MD2> &another) const {
-			return Matrix<T, MultiplyMatrix<T, MD, MD2>>(
-					MultiplyMatrix<T, MD, MD2>(this->data, another.data));
+		const Matrix<T, MultiplyMD<T, MD, MD2>> operator*(const Matrix<T, MD2> &another) const {
+			return Matrix<T, MultiplyMD<T, MD, MD2>>(
+					MultiplyMD<T, MD, MD2>(this->data, another.data));
 		}
 
 		/**
 		 * Adds the two given matrices
 		 */
 		template<class MD2>
-		const Matrix<T, SumMatrix<T, MD, MD2>> operator+(const Matrix<T, MD2> &another) const {
-			return Matrix<T, SumMatrix<T, MD, MD2>>(
-					SumMatrix<T, MD, MD2>(this->data, another.data));
+		const Matrix<T, SumMDa<T, MD, MD2>> operator+(const Matrix<T, MD2> &another) const {
+			return Matrix<T, SumMDa<T, MD, MD2>>(
+					SumMDa<T, MD, MD2>(this->data, another.data));
 		}
 
 		template<unsigned ROWS, unsigned COLUMNS, class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD2, MD>>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMDa<T, MD2, MD>>
 		operator+(const StaticSizeMatrix<ROWS, COLUMNS, T, MD2> &another) const {
 			return another + (*this);
 		}

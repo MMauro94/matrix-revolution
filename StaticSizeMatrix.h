@@ -103,10 +103,10 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		 * Multiplies the two given matrices
 		 */
 		template<unsigned C, class MD2>
-		const StaticSizeMatrix<ROWS, C, T, MultiplyMatrix<T, MD, MD2>>
+		const StaticSizeMatrix<ROWS, C, T, MultiplyMD<T, MD, MD2>>
 		operator*(const StaticSizeMatrix<COLUMNS, C, T, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, C, T, MultiplyMatrix<T, MD, MD2>>(
-					MultiplyMatrix<T, MD, MD2>(this->data, another.data));
+			return StaticSizeMatrix<ROWS, C, T, MultiplyMD<T, MD, MD2>>(
+					MultiplyMD<T, MD, MD2>(this->data, another.data));
 		}
 
 		using Matrix<T, MD>::operator*;
@@ -116,18 +116,18 @@ class StaticSizeMatrix : public Matrix<T, MD> {
 		 * Adds the two given matrices
 		 */
 		template<class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMDa<T, MD, MD2>>
 		operator+(const StaticSizeMatrix<ROWS, COLUMNS, T, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>(
-					SumMatrix<T, MD, MD2>(this->data, another.data));
+			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMDa<T, MD, MD2>>(
+					SumMDa<T, MD, MD2>(this->data, another.data));
 		}
 
 
 		template<class MD2>
-		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>
+		const StaticSizeMatrix<ROWS, COLUMNS, T, SumMDa<T, MD, MD2>>
 		operator+(const Matrix<T, MD2> &another) const {
-			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMatrix<T, MD, MD2>>(
-					SumMatrix<T, MD, MD2>(this->data, another.data));
+			return StaticSizeMatrix<ROWS, COLUMNS, T, SumMDa<T, MD, MD2>>(
+					SumMDa<T, MD, MD2>(this->data, another.data));
 		}
 
 		StaticSizeMatrix<ROWS, COLUMNS, T, VectorMatrixData<T>> copy() const {

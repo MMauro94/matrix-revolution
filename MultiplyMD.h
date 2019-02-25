@@ -1,13 +1,13 @@
 //
-// Created by MMarco on 19/12/2018.
+// Created by MMarco on 25/02/2019.
 //
 
-#ifndef MATRIX_MULTIPLYMATRIX_H
-#define MATRIX_MULTIPLYMATRIX_H
+#ifndef MATRIX_MULTIPLYMD_H
+#define MATRIX_MULTIPLYMD_H
 
 #include "MatrixData.h"
-#include "OptimizableMatrixData.h"
-#include "MatrixMaterializer.h"
+#include "OptimizableMD.h"
+#include "MaterializerMD.h"
 #include <deque>
 #include <cmath>
 #include <chrono>
@@ -17,45 +17,45 @@
 unsigned OPTIMAL_BLOCK_SIZE = 128 * 1024;
 
 template<typename T>
-class OptimizedMultiplyMatrix;
+class OptimizedMultiplyMD;
 
 template<typename T>
-class BaseMultiplyMatrix;
+class BaseMultiplyMD;
 
 /**
  * Implementation of <code>MatrixData</code> that exposes the multiplication of the two given matrices
  * @tparam T type of the data
  */
 template<typename T, class MD1, class MD2>
-class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>> {
+class MultiplyMD : public OptimizableMD<T, OptimizedMultiplyMD<T>> {
 
 	private:
 		/**
 		 * Needed to keep the pointers!
 		 * Using a deque, since it allows members without copy/move constructors
 		 */
-		mutable std::deque<OptimizedMultiplyMatrix<T>> nodeReferences;
+		mutable std::deque<OptimizedMultiplyMD<T>> nodeReferences;
 		MD1 left;
 		MD2 right;
 
 		template<typename U, class MD3, class MD4> friend
-		class MultiplyMatrix;
+		class MultiplyMD;
 
 	public:
 
-		MultiplyMatrix(MD1 left, MD2 right) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(left.rows(), right.columns()), left(left), right(right) {
+		MultiplyMD(MD1 left, MD2 right) : OptimizableMD<T, OptimizedMultiplyMD<T>>(left.rows(), right.columns()), left(left), right(right) {
 			if (left.columns() != right.rows()) {
 				Utils::error("Multiplication should be performed on compatible matrices");
 			}
 		}
 
-		MultiplyMatrix(const MultiplyMatrix<T, MD1, MD2> &another) : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
+		MultiplyMD(const MultiplyMD<T, MD1, MD2> &another) : OptimizableMD<T, OptimizedMultiplyMD<T>>(another), left(another.left), right(another.right) {
 		}
 
-		MultiplyMatrix(MultiplyMatrix<T, MD1, MD2> &&another) noexcept : OptimizableMatrixData<T, OptimizedMultiplyMatrix<T>>(another), left(another.left), right(another.right) {
+		MultiplyMD(MultiplyMD<T, MD1, MD2> &&another) noexcept : OptimizableMD<T, OptimizedMultiplyMD<T>>(another), left(another.left), right(another.right) {
 		}
 
-		virtual ~MultiplyMatrix() {
+		virtual ~MultiplyMD() {
 			//This is done in order to don't have threads that uses this object (or something inside nodeReferences or left or right), after I'm being destroying
 			this->virtualWaitOptimized();
 		}
@@ -64,8 +64,8 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			return {&this->left, &this->right};
 		}
 
-		MultiplyMatrix<T, MD1, MD2> copy() const {
-			return MultiplyMatrix<T, MD1, MD2>(this->left.copy(), this->right.copy());
+		MultiplyMD<T, MD1, MD2> copy() const {
+			return MultiplyMD<T, MD1, MD2>(this->left.copy(), this->right.copy());
 		}
 
 	protected:
@@ -82,7 +82,7 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 		 * This method optimizes the multiplication tree, by doing first the multiplication that reduces the most
 		 * the number of dimensions
 		 */
-		std::unique_ptr<OptimizedMultiplyMatrix<T>> virtualCreateOptimizedMatrix() const override {
+		std::unique_ptr<OptimizedMultiplyMD<T>> virtualCreateOptimizedMatrix() const override {
 			//Step 1: getting the chain of multiplications to perform
 			std::vector<const MatrixData<T> *> multiplicationChain;
 			addToMultiplicationChain(multiplicationChain);
@@ -107,30 +107,32 @@ class MultiplyMatrix : public OptimizableMatrixData<T, OptimizedMultiplyMatrix<T
 			}
 
 			//Step 4: the last item in the chain is the multiplication result.
-			// It is a OptimizedMultiplyMatrix, since it comes from nodeReferences.
-			auto *optimized = static_cast<const OptimizedMultiplyMatrix<T> *>(multiplicationChain[0]);
-			return std::make_unique<OptimizedMultiplyMatrix<T>>(*optimized);
+			// It is a OptimizedMultiplyMD, since it comes from nodeReferences.
+			auto *optimized = static_cast<const OptimizedMultiplyMD<T> *>(multiplicationChain[0]);
+			return std::make_unique<OptimizedMultiplyMD<T>>(*optimized);
 		}
 };
 
 /**
- * This class is used only internally on MultiplyMatrix, to keep the optimal operation tree.
+ * This class is used only internally on MultiplyMD, to keep the optimal operation tree.
  */
 template<typename T>
-class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> {
+class OptimizedMultiplyMD : public OptimizableMD<T, ConcatenationMD<T, MultiSumMD<T, BaseMultiplyMD<T>>>> {
 	private:
 		const MatrixData<T> *left, *right;
 	public:
-		OptimizedMultiplyMatrix(const MatrixData<T> *left, const MatrixData<T> *right)
-				: OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(left->rows(), right->columns()), left(left), right(right) {
+		OptimizedMultiplyMD(const MatrixData<T> *left, const MatrixData<T> *right)
+				: OptimizableMD<T, ConcatenationMD<T, MultiSumMD<T, BaseMultiplyMD<T>>>>(left->rows(), right->columns()),
+				  left(left), right(right) {
 		}
 
-		OptimizedMultiplyMatrix(const OptimizedMultiplyMatrix<T> &another) :
-				OptimizableMatrixData<T, MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(another), left(another.left), right(another.right) {
+		OptimizedMultiplyMD(const OptimizedMultiplyMD<T> &another) :
+				OptimizableMD<T, ConcatenationMD<T, MultiSumMD<T, BaseMultiplyMD<T>>>>(another),
+				left(another.left), right(another.right) {
 		}
 
 		//No move constructor
-		OptimizedMultiplyMatrix(OptimizedMultiplyMatrix<T> &&another) noexcept = delete;
+		OptimizedMultiplyMD(OptimizedMultiplyMD<T> &&another) noexcept = delete;
 
 		std::vector<const MatrixData<T> *> virtualGetChildren() const override {
 			return {this->left, this->right};
@@ -138,7 +140,7 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 
 	protected:
 
-		std::unique_ptr<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>> virtualCreateOptimizedMatrix() const override {
+		std::unique_ptr<ConcatenationMD<T, MultiSumMD<T, BaseMultiplyMD<T>>>> virtualCreateOptimizedMatrix() const override {
 			auto optimalMultiplicationSize = (unsigned) sqrt(OPTIMAL_BLOCK_SIZE / (double) sizeof(T));
 
 			//E.g. A Matrix 202x302 will be divided in 3x4 blocks, of size 68x76
@@ -160,10 +162,10 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 			//Cose da fare:
 			//-Creare i blocchi di C
 			//-Unire i blocchi di C
-			std::deque<MultiSumMatrix<T, BaseMultiplyMatrix<T>>> resultingBlocks;
+			std::deque<MultiSumMD<T, BaseMultiplyMD<T>>> resultingBlocks;
 			for (unsigned r = 0; r < numberOfGridRowsA; r++) {
 				for (unsigned c = 0; c < numberOfGridColsB; c++) {
-					std::deque<BaseMultiplyMatrix<T>> toMultiply;
+					std::deque<BaseMultiplyMD<T>> toMultiply;
 					for (unsigned k = 0; k < numberOfGridRowsB; k++) {
 						toMultiply.emplace_back(blocksOfA[r * numberOfGridColsA + k], blocksOfB[k * numberOfGridColsB + c]);
 					}
@@ -171,20 +173,21 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 				}
 			}
 			//optimized is LARGER or equal to this matrix, but that's not a problem
-			return std::make_unique<MatrixConcatenation<T, MultiSumMatrix<T, BaseMultiplyMatrix<T>>>>(resultingBlocks, numberOfGridRowsA * rowsOfGridA,
-																									  numberOfGridColsB * colsOfGridB);
+			return std::make_unique<ConcatenationMD<T, MultiSumMD<T, BaseMultiplyMD<T>>>>(
+					resultingBlocks, numberOfGridRowsA * rowsOfGridA, numberOfGridColsB * colsOfGridB
+			);
 		}
 
 	private:
 
-		std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>>
+		std::vector<std::shared_ptr<ResizerMD<T, MaterializerMD<T>>>>
 		divideInBlocks(const MatrixData<T> *matrix, unsigned numberOfGridRows, unsigned numberOfGridCols) const {
 			//e.g. matrix is 202x302;
 			//numberOfGridRows = 3
 			// numberOfGridCols = 4
 			unsigned rowsOfGrid = Utils::ceilDiv(matrix->rows(), numberOfGridRows);//e.g. 68
 			unsigned colsOfGrid = Utils::ceilDiv(matrix->columns(), numberOfGridCols);//e.g. 76
-			std::vector<std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>>> ret;
+			std::vector<std::shared_ptr<ResizerMD<T, MaterializerMD<T>>>> ret;
 			for (unsigned r = 0; r < numberOfGridRows; r++) {
 				for (unsigned c = 0; c < numberOfGridCols; c++) {
 					unsigned blockRowStart = r * rowsOfGrid;//0, 68, 136
@@ -194,9 +197,9 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 					unsigned int blockRows = blockRowEnd - blockRowStart;
 					unsigned int blockCols = blockColEnd - blockColStart;
 
-					MatrixMaterializer<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
-					//I wrap the matrix in a MatrixResizer to make sure every block is of the same size
-					ret.push_back(std::make_shared<MatrixResizer<T, MatrixMaterializer<T>>>(block, rowsOfGrid, colsOfGrid));
+					MaterializerMD<T> block(matrix, blockRowStart, blockColStart, blockRows, blockCols);
+					//I wrap the matrix in a ResizerMD to make sure every block is of the same size
+					ret.push_back(std::make_shared<ResizerMD<T, MaterializerMD<T>>>(block, rowsOfGrid, colsOfGrid));
 				}
 			}
 			return ret;
@@ -205,12 +208,12 @@ class OptimizedMultiplyMatrix : public OptimizableMatrixData<T, MatrixConcatenat
 };
 
 template<typename T>
-class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> {
+class BaseMultiplyMD : public OptimizableMD<T, VectorMatrixData<T>> {
 	private:
-		mutable std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, right;
+		mutable std::shared_ptr<ResizerMD<T, MaterializerMD<T>>> left, right;
 	public:
-		BaseMultiplyMatrix(std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> left, std::shared_ptr<MatrixResizer<T, MatrixMaterializer<T>>> right)
-				: OptimizableMatrixData<T, VectorMatrixData<T>>(left->rows(), right->columns()), left(left), right(right) {
+		BaseMultiplyMD(std::shared_ptr<ResizerMD<T, MaterializerMD<T>>> left, std::shared_ptr<ResizerMD<T, MaterializerMD<T>>> right)
+				: OptimizableMD<T, VectorMatrixData<T>>(left->rows(), right->columns()), left(left), right(right) {
 		}
 
 		//I cannot return left or right, since I could leak an object that will be deleted in the future
@@ -221,19 +224,19 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 
 	public:
 		void virtualWaitOptimized() const override {
-			MatrixResizer<T, MatrixMaterializer<T>> *l = this->left.get();
-			MatrixResizer<T, MatrixMaterializer<T>> *r = this->right.get();
+			ResizerMD<T, MaterializerMD<T>> *l = this->left.get();
+			ResizerMD<T, MaterializerMD<T>> *r = this->right.get();
 			if (l != NULL) { l->virtualWaitOptimized(); }
 			if (r != NULL) { r->virtualWaitOptimized(); }
-			OptimizableMatrixData<T, VectorMatrixData<T>>::virtualWaitOptimized();
+			OptimizableMD<T, VectorMatrixData<T>>::virtualWaitOptimized();
 		}
 
 	protected:
 
 		std::unique_ptr<VectorMatrixData<T>> virtualCreateOptimizedMatrix() const override {
 			//Keeping the references to left and right, to save some time when calling get()
-			MatrixResizer<T, MatrixMaterializer<T>> *ll = this->left.get();
-			MatrixResizer<T, MatrixMaterializer<T>> *rr = this->right.get();
+			ResizerMD<T, MaterializerMD<T>> *ll = this->left.get();
+			ResizerMD<T, MaterializerMD<T>> *rr = this->right.get();
 			std::unique_ptr<VectorMatrixData<T>> ret = std::make_unique<VectorMatrixData<T>>(ll->rows(), rr->columns());
 			for (unsigned int r = 0; r < ret->rows(); r++) {
 				for (unsigned int c = 0; c < ret->columns(); c++) {
@@ -246,10 +249,10 @@ class BaseMultiplyMatrix : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 			}
 
 			//Freeing memory
-			this->left.reset();
-			this->right.reset();
+			//this->left.reset();
+			//this->right.reset();
 			return ret;
 		}
 };
 
-#endif //MATRIX_MULTIPLYMATRIX_H
+#endif //MATRIX_MULTIPLYMD_H

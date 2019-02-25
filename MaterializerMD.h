@@ -1,22 +1,22 @@
 //
-// Created by MMarco on 14/02/2019.
+// Created by MMarco on 22/02/2019.
 //
 
-#ifndef MATRIX_MATRIXMATERIALIZER_H
-#define MATRIX_MATRIXMATERIALIZER_H
+#ifndef MATRIX_MATERIALIZERMD_H
+#define MATRIX_MATERIALIZERMD_H
 
 #include "MatrixData.h"
-#include "OptimizableMatrixData.h"
+#include "OptimizableMD.h"
 
 template<typename T>
-class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> {
+class MaterializerMD : public OptimizableMD<T, VectorMatrixData<T>> {
 	private:
 		const MatrixData<T> *wrapped;
 		unsigned rowOffset, colOffset;
 
 	public:
-		MatrixMaterializer(const MatrixData<T> *wrapped, unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns)
-				: OptimizableMatrixData<T, VectorMatrixData<T>>(rows, columns), rowOffset(rowOffset), colOffset(colOffset), wrapped(wrapped) {
+		MaterializerMD(const MatrixData<T> *wrapped, unsigned rowOffset, unsigned colOffset, unsigned rows, unsigned columns)
+				: OptimizableMD<T, VectorMatrixData<T>>(rows, columns), rowOffset(rowOffset), colOffset(colOffset), wrapped(wrapped) {
 		}
 
 	protected:
@@ -30,4 +30,4 @@ class MatrixMaterializer : public OptimizableMatrixData<T, VectorMatrixData<T>> 
 		}
 };
 
-#endif //MATRIX_MATRIXMATERIALIZER_H
+#endif //MATRIX_MATERIALIZERMD_H
