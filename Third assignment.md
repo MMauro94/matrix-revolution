@@ -16,7 +16,7 @@ Now, each Cij can be computed independently from the other and in parallel.
 ## Breaking changes between v2
 ### Casting
 To simplify the library, the sum between matrices of different types is no longer automatic.
-To sum or multiply matrices of different type, you have to call the new method `cast` on one of the two matrices.
+To sum or multiply matrices of different types, you have to call the new method `cast` on one of the two matrices.
 
 For example:
 ```
