@@ -349,7 +349,7 @@ class DiagonalMatrixMD : public SingleMatrixWrapper<T, MD> {
  * Given a vector of matrices, creates a new matrix composed by the concatenation of the given matrices.
  *
  * Let's suppose A, B, C and D are 2x2 matrices.
- * If I crate a ConcatenationMD((A,B,C,D), 4, 4), I will obtained a 4x4 matrices, whose blocks are:
+ * If I crate a ConcatenationMD((A,B,C,D), 4, 4), I will obtained a 4x4 matrix, whose blocks are:
  *
  * A|B
  * C|D

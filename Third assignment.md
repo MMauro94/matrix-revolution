@@ -37,7 +37,7 @@ Since doing a virtual call for a single cell has a huge impact on performances, 
 ## Other changes
 To implement concurrency and parallelization, some changes have been made to allow more powerful manipulations of the expression tree. 
 
-### MatrixData tree
+### Expression tree
 Like before, when performing operations on a matrix, the `MatrixData` is being wrapped inside another `MatrixData`.
 When adding or multiplying `MatrixData`, the matrices involved are wrapped inside a `MatrixData` as well.
 
@@ -49,7 +49,7 @@ By accessing the children of a matrix, it's possible to reconstruct the full tre
 ### ConcatenationMD
 `ConcatenationMD` is a new `MatrixData`, which takes a list of matrices and exposes a matrix composed by the concatenation of the given matrices.
 Let's suppose `A`, `B`, `C` and `D` are 2x2 matrices.
-If I crate a `ConcatenationMD((A,B,C,D), 4, 4)`, I will obtain a 4x4 matrices, whose blocks are:
+If I crate a `ConcatenationMD((A,B,C,D), 4, 4)`, I will obtain a 4x4 matrix, whose blocks are:
 
 ```
 A|B
@@ -81,10 +81,10 @@ The simpler class that overrides `OptimizableMD` is `MaterializerMD`.
 
 Let's suppose you have a pointer to `MatrixData`, and you want to access a large number of cells. Normally, you would have to call `virtualGet` for each cell, but it will result on a lot of virtual calls.
 
-In this scenario, you can use `MaterializerMD` to wrap your matrix. By using the properties of `OptimizableMD`, the first time the matrix is accessed the original matrix is copied on a faster `VectorMatrixData` on another thread. This reduces the total number of virtual calls to one.
+In this scenario, you can use `MaterializerMD` to wrap your matrix. By using the properties of `OptimizableMD`, the first time the matrix is accessed the original matrix is copied to a faster `VectorMatrixData` on another thread. This reduces the total number of virtual calls to one.
 
 #### MultiplyMD
-In the last assignment, `MultiplyMD` was introduced: a `MatrixData` that, the first time it was accessed, optimized the multiplication tree in order to compute first the multiplications that reduced the number of dimensions the most.
+In the last assignment, `MultiplyMD` was introduced: a `MatrixData` that, the first time it was accessed, optimized the multiplication tree in order to compute first the multiplications that reduce the number of dimensions the most.
 
 This class has been changed to extend `OptimizableMD`. When optimizing, it returns a `OptimizedMultiplyMD`, which represents the optimized multiplication tree. 
 
@@ -102,7 +102,7 @@ Let's suppose you want to perform `(AxB) + (CxD)`, where `A`, `B`,`C` and `D` ar
 
 Since the sum is a `MatrixData`, on the first access `optimize` is called on the two children, which are `MultiplyMD` in this example. Those extend `OptimizableMD`, so they perform the multiplications on a separate thread, and at the same time.
 
-Surprisingly, the library achieves parallelization without further modifications on arbitrary expression trees. 
+Surprisingly, the library achieves parallelization on arbitrary expression trees without further modifications. 
 
 ## Parallelization
 Let's suppose you want to perform `C=AxB`, where `A` and `B` are two big matrices. The goal of parallelization is to perform the multiplication on multiple CPU cores at the same time, to make it as fast as possible.
@@ -135,9 +135,9 @@ Fortunately, you can extend the rows and columns with zeros, perform the multipl
 
 This property makes possible to divide every matrix in blocks, independently on the original size. 
 
-The library tries to divide the matrix in blocks of 128KB, i.e. 128x128 if using longs. This was the size with the optimal balance between tree size and performance. 
+The library tries to divide the matrix in blocks of 128KB, i.e. 128x128 if using longs. This was the size with the optimal balance between memory consumption and performance. 
 
-To implement this, the subtree of `BaseMultiplyMD` looks like this:
+At the end, the subtree of `BaseMultiplyMD` looks like this:
 - BaseMultiplyMD
   - ResizerMD
     - MaterializerMD
